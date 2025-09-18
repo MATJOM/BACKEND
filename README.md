@@ -1,2 +1,2 @@
 # BACKEND
-MATJOM 프로젝ㅌ 백엔드 저장소
+MATJOM 프로젝트 백엔드 저장소
