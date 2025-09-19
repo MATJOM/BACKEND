@@ -1,0 +1,64 @@
+name: "🐞 Bug report"
+title: "[#<이슈번호>] fix(<scope>): <버그 요약>"
+description: "기능이 기대와 다르게 동작함"
+labels: [bug]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 제목/브랜치 예시
+        - 제목: `[#123] fix(auth): 로그인 실패시 500 반환 수정`
+        - 브랜치: `bugfix/123-auth-login-500`
+  - type: input
+    id: summary
+    attributes:
+      label: 요약
+      placeholder: 예) 로그인 시 500 오류 발생
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 영향도(Severity)
+      options: [blocker, critical, major, minor, trivial]
+      default: 2
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 환경 정보
+      placeholder: Ubuntu 22.04, JDK 21, commit abc123, branch develop
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 절차(Steps to Reproduce)
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 동작
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그/스택트레이스
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 체크리스트
+      options:
+        - label: 최신 main/develop 기준으로 재현 확인
+        - label: 캐시/쿠키/환경 변수 초기화 후 재현 확인
+        - label: 관련 이슈/PR 링크 첨부
+        - label: 보안/시크릿 노출 없음

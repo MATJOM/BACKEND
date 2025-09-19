@@ -1,0 +1,53 @@
+spring:
+  datasource:
+    # TODO: DB 이름은 아직 정해지지 않음 → 비워둠
+    url: jdbc:postgresql://postgres:5432/matjom      # 앱도 컨테이너로 띄울 경우 서비스명 사용
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        show_sql: false
+        format_sql: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-postgres.sql
+  data:
+    redis:
+      host: redis
+      port: 6379
+#  flyway:
+#    enabled: true                # Flyway 활성화
+#    baseline-on-migrate: true    # 기존 DB에서도 처음 실행 시 baseline 적용
+#    locations: classpath:db/migration
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+
+springdoc:
+  api-docs:
+    enabled: false # 운영 환경에서는 Swagger 비활성화
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}

@@ -1,0 +1,19 @@
+filebeat.inputs:
+  - type: log
+    id: matjom-app-logs
+    enabled: true
+    paths: ["/var/log/matjom/*.log"]
+    # Logback JSON Lines 전제
+    json.keys_under_root: true
+    json.add_error_key: true
+    # 새 파일 스캔 주기(기본 10s). 이미 열려있는 파일은 즉시 tail.
+    scan_frequency: 10s
+    close_inactive: 5m
+    clean_inactive: 72h
+
+# 필요 시 멀티라인(스택트레이스)을 한 이벤트로 묶고 싶다면 JSON이 아니라 패턴 기반을 사용.
+# 하지만 권장은 logback에서 stackTrace JSON 필드에 담아 한 줄로 기록하는 것.
+
+# ◇ Logstash로 전달
+output.logstash:
+  hosts: ["logstash:5044"]

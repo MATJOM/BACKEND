@@ -1,0 +1,53 @@
+name: "✨ Feature request"
+title: "[#<이슈번호>] feat(<scope>): <기능 요약>"
+description: "새로운 기능/개선 제안"
+labels: [enhancement]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 제목/브랜치 예시
+        - 제목: `[#321] feat(search): 거리순 커서 페이징 도입`
+        - 브랜치: `feature/321-search-cursor-paging`
+  - type: textarea
+    id: background
+    attributes:
+      label: 배경/문제 정의
+      description: 왜 필요한가요? 어떤 사용자가 어떤 문제를 겪나요?
+  - type: textarea
+    id: user_story
+    attributes:
+      label: 사용자 스토리
+      description: As a <사용자>, I want <무엇을> so that <가치>
+      placeholder: As a buyer, I want ... so that ...
+  - type: textarea
+    id: scope
+    attributes:
+      label: 범위(In/Out)
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 수용 기준(AC)
+      placeholder: |
+        - [ ] Given ..., When ..., Then ...
+  - type: textarea
+    id: api_impact
+    attributes:
+      label: API/계약 영향
+  - type: textarea
+    id: nfr
+    attributes:
+      label: 비기능 요구사항(NFR)
+  - type: textarea
+    id: deps
+    attributes:
+      label: 의존성/리스크
+  - type: input
+    id: estimate
+    attributes:
+      label: 예상 공수(스토리 포인트/시간)
+  - type: input
+    id: milestone
+    attributes:
+      label: 마일스톤(선택)

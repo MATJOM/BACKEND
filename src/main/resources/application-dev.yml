@@ -1,0 +1,55 @@
+spring:
+  datasource:
+    # TODO: 개발용 DB 접속 정보 확정 시 수정
+    url: jdbc:postgresql://localhost:5432/matjom_dev
+    username: devuser
+    password: devpass
+    driver-class-name: org.postgresql.Driver
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-postgres.sql
+  jmx:
+    enabled: false
+#    enabled: true                # Flyway 활성화
+#    baseline-on-migrate: true    # 기존 DB에서도 처음 실행 시 baseline 적용
+#    locations: classpath:db/migration
+
+logging:
+  level:
+    root: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE # 바인딩 값 확인 (개발에서만)
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"   # dev에선 모두 노출
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}

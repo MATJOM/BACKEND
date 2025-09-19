@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: "matjom-app"
+    metrics_path: /actuator/prometheus
+    static_configs:
+      # 앱을 호스트에서 실행한다면:
+      - targets: ["host.docker.internal:8080"]
+      # Linux에서는 host.docker.internal이 없을 수 있으니, 호스트 IP로 교체하세요.
+      # 컨테이너로 앱을 띄우고 같은 네트워크라면 서비스명:포트로 지정(예: "api:8080")

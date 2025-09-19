@@ -1,0 +1,28 @@
+name: "🚢 Release checklist"
+title: "release: cut <X.Y.Z>"
+description: "릴리스 분기 생성부터 태깅까지 점검"
+labels: [release]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 브랜치 예시
+        - `release/1.3.0`
+  - type: checkboxes
+    id: steps
+    attributes:
+      label: 체크리스트
+      options:
+        - label: develop에서 `release/x.y.z` 분기
+          required: true
+        - label: 버전 고정 및 CHANGELOG 업데이트
+          required: true
+        - label: QA 시나리오 전체 통과
+          required: true
+        - label: CI(build/test/lint) 그린
+          required: true
+        - label: main으로 PR(Squash) → 태그 vX.Y.Z 생성
+          required: true
+        - label: main 변경사항을 develop에 역병합(또는 체리픽)
+          required: true
