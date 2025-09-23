@@ -56,7 +56,7 @@
 
 - [ ] 2.0 검색 API(v1)
   - [x] 2.1 `PlaceController.getPlaces()` 스켈레톤 + 요청 파라미터 검증(`lat,lng,radius,size,cursor,filters`).
-  - [ ] 2.2 `PlaceSearchService.search()`에서 캐시(60s) 선조회 → 미스 시 PostGIS 질의 수행.
+  - [x] 2.2 `PlaceSearchService.search()`에서 캐시(60s) 선조회 → 미스 시 PostGIS 질의 수행. (`PlaceRepository` native 질의 + Redis 60s 캐시)
   - [ ] 2.3 커서 페이징 구현: 정렬 `distance ASC, id ASC`; 커서(`distance,lastId`) 파싱/검증/다음 커서 생성.
   - [ ] 2.4 결과 상한 500 처리: 501+면 `200` + `meta.reason="too_many_results"` + `suggest`.
   - [ ] 2.5 레이트리밋(10/10s user/ip) 적용 및 `Retry-After` 헤더 세팅.
