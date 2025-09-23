@@ -82,4 +82,12 @@ public class User extends BaseEntity {
     public void changePassword(String password) {
         this.password = password;
     }
+
+    public static User createLocalUser(String email, String name, String password) {
+        return new User(email, name, password, AuthProvider.LOCAL);
+    }
+
+    public static User createOAuthUser(String email, String name, String password) {
+        return new User(email, name, password, AuthProvider.GOOGLE);
+    }
 }
