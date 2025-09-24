@@ -71,4 +71,8 @@ public class JwtTokenProvider {
             return false;
         }
     }
+
+    public Long getRefreshTokenValidity() {
+        return REFRESH_TOKEN_VALIDITY;
+    }
 }

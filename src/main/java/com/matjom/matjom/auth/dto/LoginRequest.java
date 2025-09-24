@@ -1,4 +1,5 @@
 package com.matjom.matjom.auth.dto;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -9,7 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class SignUpRequest {
+public class LoginRequest {
     @NotBlank
     @Email
     private String email;
@@ -18,6 +19,5 @@ public class SignUpRequest {
     @Size(min = 8, max = 32, message = "비밀번호는 8~32자로 입력해야 합니다.")
     private String password;
 
-    @NotBlank
-    private String name;
+    private String captchaToken;
 }
