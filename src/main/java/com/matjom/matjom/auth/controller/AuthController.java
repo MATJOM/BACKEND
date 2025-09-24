@@ -2,8 +2,8 @@ package com.matjom.matjom.auth.controller;
 
 import com.matjom.matjom.auth.dto.LoginRequest;
 import com.matjom.matjom.auth.dto.LoginResponse;
-import com.matjom.matjom.auth.dto.SignUpRequest;
 import com.matjom.matjom.auth.dto.LoginResult;
+import com.matjom.matjom.auth.dto.SignUpRequest;
 import com.matjom.matjom.auth.service.LoginService;
 import com.matjom.matjom.auth.service.SignUpService;
 import com.matjom.matjom.auth.util.CookieUtil;
@@ -23,20 +23,20 @@ public class AuthController {
     private final LoginService loginService;
 
     @PostMapping("/signup")
-    public void signup(@Valid @RequestBody SignUpRequest request) {
-        signUpService.signUp(request);
+    public LoginResponse signup(@Valid @RequestBody SignUpRequest request, HttpServletResponse response) {
+        LoginResult result = signUpService.signUp(request);
+        return writeTokens(result, response);
     }
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
         LoginResult result = loginService.login(request);
+        return writeTokens(result, response);
+    }
 
-        //Authorization 헤더에 AccessToken 담기
+    private LoginResponse writeTokens(LoginResult result, HttpServletResponse response) {
         response.setHeader("Authorization", "Bearer " + result.getAccessToken());
-
-        //HttpOnly 쿠키에 RefreshToken 담기
         response.addCookie(CookieUtil.createRefreshTokenCookie(result.getRefreshToken()));
-
         return result.getResponse();
     }
 }

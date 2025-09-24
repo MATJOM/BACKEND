@@ -48,7 +48,7 @@ public class LoginService {
         return user;
     }
 
-    private LoginResult issueTokens(User user) {
+    public LoginResult issueTokens(User user) {
         String accessToken = jwtTokenProvider.createAccessToken(user);
         String refreshToken = jwtTokenProvider.createRefreshToken(user);
         refreshTokenRepository.save(user.getId(), refreshToken);

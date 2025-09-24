@@ -37,7 +37,6 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'   // 운영 DB (Postgresql)
     runtimeOnly 'com.h2database:h2'           // 로컬 개발용 인메모리 DB
 
-    //
     implementation 'org.hibernate.orm:hibernate-spatial'
     implementation 'org.locationtech.jts:jts-core:1.19.0'
 
@@ -72,6 +71,9 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'            // JUnit 플랫폼 런처
     testImplementation 'org.testcontainers:junit-jupiter:1.20.0'
     testImplementation 'org.testcontainers:postgresql:1.20.0'
+
+    // ====== Argon2 라이브러리 ======
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
 }
 
 tasks.named('test') {

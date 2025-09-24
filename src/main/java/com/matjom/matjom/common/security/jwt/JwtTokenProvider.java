@@ -15,7 +15,7 @@ import java.util.Date;
 @Component // Spring Bean 등록
 public class JwtTokenProvider {
     //default-unsafe-secret을 폴백 값으로 사용. 환경변수로 jwt.secret 값 넣어줘야함
-    @Value("${jwt.secret:default-unsafe-secret}")
+    @Value("${jwt.secret:zXa5T1pL8qR3vDy7Hn2cG4sJ9mQ1wE6Z}")
     private String secretKey;
 
     private static final long ACCESS_TOKEN_VALIDITY = 15 * 60 * 1000L;        // 15분
