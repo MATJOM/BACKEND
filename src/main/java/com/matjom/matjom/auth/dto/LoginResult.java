@@ -7,13 +7,11 @@ import lombok.Getter;
 @Builder
 public class LoginResult {
     private String accessToken;
-    private String refreshToken;
     private LoginResponse response;
 
-    public static LoginResult from(String accessToken, String refreshToken, LoginResponse response) {
+    public static LoginResult from(String accessToken, LoginResponse response) {
         return LoginResult.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .response(response)
                 .build();
     }

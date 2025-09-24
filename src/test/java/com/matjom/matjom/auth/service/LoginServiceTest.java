@@ -83,7 +83,7 @@ class LoginServiceTest {
         LoginResult result = loginService.login(request);
 
         assertThat(result.getAccessToken()).isEqualTo(ACCESS_TOKEN);
-        assertThat(result.getRefreshToken()).isEqualTo(REFRESH_TOKEN);
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo(REFRESH_TOKEN);
         assertThat(result.getResponse().getEmail()).isEqualTo(EMAIL);
         assertThat(result.getResponse().getName()).isEqualTo(NAME);
         assertThat(result.getResponse().getProvider()).isEqualTo(AuthProvider.LOCAL);
@@ -190,3 +190,4 @@ class LoginServiceTest {
         }
     }
 }
+

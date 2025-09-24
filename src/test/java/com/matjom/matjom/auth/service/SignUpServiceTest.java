@@ -68,7 +68,6 @@ class SignUpServiceTest {
         LoginResult result = signUpService.signUp(request);
 
         assertThat(result.getAccessToken()).isEqualTo(expected.getAccessToken());
-        assertThat(result.getRefreshToken()).isEqualTo(expected.getRefreshToken());
 
         ArgumentCaptor<User> savedCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(savedCaptor.capture());
@@ -139,6 +138,6 @@ class SignUpServiceTest {
                 .name(NAME)
                 .provider(AuthProvider.LOCAL)
                 .build();
-        return LoginResult.from("access", "refresh", response);
+        return LoginResult.from("access", response);
     }
 }

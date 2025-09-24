@@ -11,12 +11,14 @@ public class LoginResponse {
     private String email;
     private String name;
     private AuthProvider provider;
-
-    public static LoginResponse from(User user) {
+    private String refreshToken;
+    public static LoginResponse from(User user, String refreshToken) {
         return LoginResponse.builder()
                 .email(user.getEmail())
                 .name(user.getName())
                 .provider(user.getProvider())
+                .refreshToken(refreshToken)
                 .build();
     }
 }
+
