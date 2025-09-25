@@ -44,6 +44,7 @@ public enum ErrorCode {
     ROULETTE_NO_CANDIDATE(HttpStatus.NO_CONTENT, "룰렛 후보가 없습니다."),
 
     // ====== Feed ======
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "리뷰를 찾을 수 없습니다."),
     REVIEW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "리뷰 작성 권한이 없습니다."),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "리뷰가 이미 작성되었습니다."),
     REVIEW_BAD_LANGUAGE(HttpStatus.BAD_REQUEST, "부적절한 표현이 감지되었습니다."),
