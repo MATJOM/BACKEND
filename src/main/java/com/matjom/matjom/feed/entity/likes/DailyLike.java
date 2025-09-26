@@ -1,4 +1,4 @@
-package com.matjom.matjom.feed.entity.review;
+package com.matjom.matjom.feed.entity.likes;
 
 import com.matjom.matjom.common.entity.BaseEntity;
 import jakarta.persistence.Column;
@@ -9,22 +9,22 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.util.UUID;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "daily_likes")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Review extends BaseEntity {
+public class DailyLike extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -39,21 +39,28 @@ public class Review extends BaseEntity {
     @Column(name = "visit_id", nullable = false, unique = true)
     private Long visitId;
 
-    @Column(name = "text", nullable = false, length = 140)
-    @Setter
-    private String text;
+    @Column(name = "date_kst", nullable = false)
+    private LocalDate dateKst;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     @Builder.Default
-    private ReviewStatus status = ReviewStatus.ACTIVE; // 9월 26일 최종: 상태는 ACTIVE/DELETED만 사용
+    private LikeStatus status = LikeStatus.ACTIVE; // 9월 26일 최종: ACTIVE/CANCELLED만 유지
 
-    public void delete() {
-        this.status = ReviewStatus.DELETED; // 9월 26일 최종: 삭제 시 상태 전환만 수행
-        this.markDeleted();
+    @Column(name = "cancelled_at")
+    private OffsetDateTime cancelledAt;
+
+    public boolean isActive() { // 9월 26일 최종: 단순 활성 상태 판단
+        return status == LikeStatus.ACTIVE && !isDeleted();
     }
 
-    public boolean isActive() { // 9월 26일 최종: 심플한 활성 여부 판단
-        return status == ReviewStatus.ACTIVE && !isDeleted();
+    public void cancel(OffsetDateTime cancelledAt) { // 9월 26일 최종: 취소 처리
+        this.status = LikeStatus.CANCELLED;
+        this.cancelledAt = cancelledAt;
+    }
+
+    public void reactivate() { // 9월 26일 최종: 재활성화 처리
+        this.status = LikeStatus.ACTIVE;
+        this.cancelledAt = null;
     }
 }

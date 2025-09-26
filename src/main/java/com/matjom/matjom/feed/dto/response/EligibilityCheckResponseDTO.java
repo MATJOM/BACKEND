@@ -13,6 +13,7 @@ public class EligibilityCheckResponseDTO {
     private Boolean eligible;             // 작성 가능 여부
     private String reason;               // 불가능한 경우 이유
     private Long visitId;                // 해당 방문 ID
+    private Boolean visitExists;         // 9월 26일 최종: 방문 존재 여부
     private Boolean visitArrived;        // 도착 여부
     private Boolean alreadyWritten;      // 이미 작성 여부
     private Boolean withinTimeLimit;     // 시간 제한 내 여부
@@ -22,6 +23,7 @@ public class EligibilityCheckResponseDTO {
                 .eligible(true)
                 .reason(null)
                 .visitId(visitId)
+                .visitExists(true) // 9월 26일 최종
                 .visitArrived(true)
                 .alreadyWritten(false)
                 .withinTimeLimit(true)
@@ -29,11 +31,12 @@ public class EligibilityCheckResponseDTO {
     }
 
     public static EligibilityCheckResponseDTO notEligible(String reason, Long visitId,
-                                                       Boolean visitArrived, Boolean alreadyWritten, Boolean withinTimeLimit) {
+                                                       Boolean visitExists, Boolean visitArrived, Boolean alreadyWritten, Boolean withinTimeLimit) {
         return EligibilityCheckResponseDTO.builder()
                 .eligible(false)
                 .reason(reason)
                 .visitId(visitId)
+                .visitExists(visitExists) // 9월 26일 최종
                 .visitArrived(visitArrived)
                 .alreadyWritten(alreadyWritten)
                 .withinTimeLimit(withinTimeLimit)

@@ -123,14 +123,13 @@ CREATE TABLE IF NOT EXISTS reviews (
     visit_id BIGINT NOT NULL,
     text VARCHAR(140) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-    flagged BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(), -- 9월 24일 수정: BaseEntity 표준
     updated_at TIMESTAMPTZ, -- 9월 24일 수정: BaseEntity 표준
     deleted_at TIMESTAMPTZ, -- 9월 24일 수정: BaseEntity 표준
     CONSTRAINT fk_reviews_user FOREIGN KEY (user_id) REFERENCES users(id),
     CONSTRAINT fk_reviews_place FOREIGN KEY (place_id) REFERENCES places(place_id),
     CONSTRAINT fk_reviews_visit FOREIGN KEY (visit_id) REFERENCES visits(visit_id),
-    CONSTRAINT chk_review_status CHECK (status IN ('ACTIVE', 'HIDDEN', 'DELETE')),
+    CONSTRAINT chk_review_status CHECK (status IN ('ACTIVE', 'DELETED')), -- 9월 26일 최종: 허용 상태 축소
     CONSTRAINT chk_review_text_length CHECK (char_length(text) BETWEEN 1 AND 140),
     CONSTRAINT uq_review_visit UNIQUE (visit_id) -- 방문당 리뷰 1개 제한
     );
@@ -141,7 +140,6 @@ CREATE INDEX IF NOT EXISTS idx_reviews_visit ON reviews (visit_id);
 CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews (status);
 CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON reviews (created_at);
 CREATE INDEX IF NOT EXISTS idx_reviews_place_active ON reviews (place_id) WHERE status = 'ACTIVE';
-CREATE INDEX IF NOT EXISTS idx_reviews_flagged ON reviews (flagged) WHERE flagged = true;
 
 -- Daily Likes (일일 좋아요)
 -- 9월 24일 수정: BaseEntity 상속으로 표준 타임스탬프 적용
