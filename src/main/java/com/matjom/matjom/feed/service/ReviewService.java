@@ -74,7 +74,7 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDTO createReview(UUID userId, ReviewCreateRequestDTO request) {
-        reviewModerationService.validateText(request.getText());
+
         log.info("리뷰 작성 시작: userId={}, placeId={}, visitId={}",
                 maskUserId(userId), request.getPlaceId(), request.getVisitId());
 
@@ -129,7 +129,7 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDTO updateReview(UUID userId, UUID reviewId, ReviewUpdateRequestDTO request) {
-        reviewModerationService.validateText(request.getText());
+
         log.info("리뷰 수정 요청: userId={}, reviewId={}",
                 maskUserId(userId), reviewId);
         Review review = reviewRepository.findById(reviewId)
@@ -153,17 +153,6 @@ public class ReviewService {
         log.info("리뷰 수정 완료: reviewId={}",
                 reviewId);
         return ReviewResponseDTO.from(review);
-    }
-
-    @Transactional
-    public void reportReview(UUID userId, UUID reviewId,
-                             ReportReason reason, String description) {
-        ReportReviewRequestDTO request = ReportReviewRequestDTO.builder()
-                .reason(reason)
-                .description(description)
-                .build();
-
-        reviewModerationService.reportReview(reviewId, userId, request);
     }
 
     /**
