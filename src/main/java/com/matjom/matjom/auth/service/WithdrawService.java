@@ -1,40 +1,34 @@
 package com.matjom.matjom.auth.service;
 
-import com.matjom.matjom.auth.repository.RefreshTokenRepository;
-import com.matjom.matjom.auth.repository.TokenBlacklistRepository;
 import com.matjom.matjom.common.exception.base.AuthException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.common.security.jwt.JwtTokenProvider;
 import com.matjom.matjom.user.entity.AuthProvider;
 import com.matjom.matjom.user.entity.User;
 import com.matjom.matjom.user.repository.UserRepository;
-import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class LogoutService {
+public class WithdrawService {
 
-    private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
-    private final TokenBlacklistRepository tokenBlacklistRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final LogoutService logoutService;
 
-    public void logout(String accessToken) {
+    public void withdraw(String accessToken){
         String email = jwtTokenProvider.getEmailFromToken(accessToken);
         String provider = jwtTokenProvider.getProviderFromToken(accessToken);
 
         User user = userRepository.findByEmailAndProvider(email, AuthProvider.valueOf(provider))
                 .orElseThrow(() -> new AuthException(ErrorCode.INVALID_CREDENTIALS));
 
-        logoutHelper(user, accessToken);
-    }
+        if (user.isDeleted()){
+            throw new AuthException(ErrorCode.WITHDRAW_ALREADY_INACTIVE);
+        }
 
-    public void logoutHelper(User user, String accessToken) {
-        refreshTokenRepository.delete(user.getId());
-
-        Duration ttl = jwtTokenProvider.getRemainingValidity(accessToken);
-        tokenBlacklistRepository.save(accessToken, ttl);
+        user.markDeleted();
+        logoutService.logoutHelper(user, accessToken);
     }
 }
