@@ -12,9 +12,11 @@
 
 ## 2. DTO & 요청/응답 예시
 
-```json
+```http
 POST /api/v1/recommendations/roulette
-Headers: Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
+Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
+Content-Type: application/json
+
 {
   "lat": 37.5665,
   "lng": 126.9780,

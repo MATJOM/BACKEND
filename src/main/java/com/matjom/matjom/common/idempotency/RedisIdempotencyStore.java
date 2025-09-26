@@ -6,8 +6,9 @@ import com.matjom.matjom.common.exception.base.IdempotencyException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
 import java.time.Duration;
 import java.util.Objects;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ public class RedisIdempotencyStore implements IdempotencyStore {
     private final ObjectMapper objectMapper;
     private final Duration ttl;
 
+    @Autowired
     public RedisIdempotencyStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this(redisTemplate, objectMapper, DEFAULT_TTL);
     }
