@@ -16,7 +16,7 @@ import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
-    @Value("")
+    @Value("${jwt.secret:MATJOM_DEFAULT_JWT_SECRET_KEY_32B__CHANGE_ME_1234567890}")
     private String secretKey;
 
     private static final long ACCESS_TOKEN_VALIDITY = 15 * 60 * 1000L;

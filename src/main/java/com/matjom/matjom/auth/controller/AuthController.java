@@ -1,18 +1,28 @@
 package com.matjom.matjom.auth.controller;
 
-import com.matjom.matjom.auth.dto.*;
+import com.matjom.matjom.auth.dto.GoogleOAuthRequest;
+import com.matjom.matjom.auth.dto.LoginRequest;
+import com.matjom.matjom.auth.dto.LoginResponse;
+import com.matjom.matjom.auth.dto.LoginResult;
+import com.matjom.matjom.auth.dto.ReissueRequest;
+import com.matjom.matjom.auth.dto.ReissueResponse;
+import com.matjom.matjom.auth.dto.ReissueResult;
+import com.matjom.matjom.auth.dto.SignUpRequest;
+import com.matjom.matjom.auth.service.GoogleOAuthService;
 import com.matjom.matjom.auth.service.LoginService;
 import com.matjom.matjom.auth.service.LogoutService;
 import com.matjom.matjom.auth.service.ReissueService;
 import com.matjom.matjom.auth.service.SignUpService;
 import com.matjom.matjom.common.response.ApiResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
@@ -22,6 +32,7 @@ public class AuthController {
     private final LoginService loginService;
     private final LogoutService logoutService;
     private final ReissueService reissueService;
+    private final GoogleOAuthService googleOAuthService;
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<LoginResponse>> signup(@Valid @RequestBody SignUpRequest request) {
@@ -45,9 +56,19 @@ public class AuthController {
         logoutService.logout(accessToken);
     }
 
+    @PostMapping("/oauth/google/callback")
+    public ResponseEntity<ApiResponse<LoginResponse>> googleCallback(@Valid @RequestBody GoogleOAuthRequest request) {
+        LoginResult result = googleOAuthService.signIn(request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + result.getAccessToken())
+                .body(ApiResponse.ok(result.getResponse()));
+    }
+
     @PostMapping("/reissue")
-    public ResponseEntity<ApiResponse<ReissueResponse>> reissue(@RequestHeader(HttpHeaders.AUTHORIZATION) String header,
-                                                              @RequestBody ReissueRequest request) {
+    public ResponseEntity<ApiResponse<ReissueResponse>> reissue(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String header,
+            @RequestBody ReissueRequest request
+    ) {
         String accessToken = header.replaceFirst("Bearer ", "");
         String refreshToken = request.getRefreshToken();
         ReissueResult result = reissueService.reissue(accessToken, refreshToken);

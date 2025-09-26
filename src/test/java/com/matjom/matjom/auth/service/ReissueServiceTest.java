@@ -1,7 +1,7 @@
 package com.matjom.matjom.auth.service;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -17,7 +17,6 @@ import com.matjom.matjom.user.entity.AuthProvider;
 import com.matjom.matjom.user.entity.User;
 import com.matjom.matjom.user.repository.UserRepository;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.impl.DefaultClaims;
 import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,20 +50,16 @@ class ReissueServiceTest {
     private ReissueService reissueService;
 
     private User user;
-    private Claims claims;
 
     @BeforeEach
     void setUp() {
         user = User.createLocalUser(EMAIL, "name", "encoded");
         setField(user, "id", USER_ID);
-
-        claims = new DefaultClaims();
-        claims.setSubject(EMAIL);
-        claims.put("provider", PROVIDER.name());
     }
 
     @Test
     void reissue_success() {
+        Claims claims = mockClaims();
         when(jwtTokenProvider.getClaimsEvenIfExpired(ACCESS_TOKEN)).thenReturn(claims);
         when(tokenBlacklistRepository.exists(ACCESS_TOKEN)).thenReturn(false);
         when(userRepository.findByEmailAndProvider(EMAIL, PROVIDER)).thenReturn(Optional.of(user));
@@ -79,6 +75,7 @@ class ReissueServiceTest {
 
     @Test
     void reissue_failsWhenBlacklisted() {
+        Claims claims = mockClaims();
         when(jwtTokenProvider.getClaimsEvenIfExpired(ACCESS_TOKEN)).thenReturn(claims);
         when(tokenBlacklistRepository.exists(ACCESS_TOKEN)).thenReturn(true);
 
@@ -92,6 +89,7 @@ class ReissueServiceTest {
 
     @Test
     void reissue_failsWhenUserMissing() {
+        Claims claims = mockClaims();
         when(jwtTokenProvider.getClaimsEvenIfExpired(ACCESS_TOKEN)).thenReturn(claims);
         when(tokenBlacklistRepository.exists(ACCESS_TOKEN)).thenReturn(false);
         when(userRepository.findByEmailAndProvider(EMAIL, PROVIDER)).thenReturn(Optional.empty());
@@ -104,6 +102,7 @@ class ReissueServiceTest {
 
     @Test
     void reissue_failsWhenRefreshTokenMissing() {
+        Claims claims = mockClaims();
         when(jwtTokenProvider.getClaimsEvenIfExpired(ACCESS_TOKEN)).thenReturn(claims);
         when(tokenBlacklistRepository.exists(ACCESS_TOKEN)).thenReturn(false);
         when(userRepository.findByEmailAndProvider(EMAIL, PROVIDER)).thenReturn(Optional.of(user));
@@ -117,6 +116,7 @@ class ReissueServiceTest {
 
     @Test
     void reissue_failsWhenRefreshTokenMismatch() {
+        Claims claims = mockClaims();
         when(jwtTokenProvider.getClaimsEvenIfExpired(ACCESS_TOKEN)).thenReturn(claims);
         when(tokenBlacklistRepository.exists(ACCESS_TOKEN)).thenReturn(false);
         when(userRepository.findByEmailAndProvider(EMAIL, PROVIDER)).thenReturn(Optional.of(user));
@@ -126,6 +126,13 @@ class ReissueServiceTest {
                 .isInstanceOf(AuthException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.INVALID_TOKEN);
+    }
+
+    private Claims mockClaims() {
+        Claims claims = Mockito.mock(Claims.class);
+        when(claims.getSubject()).thenReturn(EMAIL);
+        when(claims.get("provider", String.class)).thenReturn(PROVIDER.name());
+        return claims;
     }
 
     private void setField(Object target, String fieldName, Object value) {
@@ -138,4 +145,3 @@ class ReissueServiceTest {
         }
     }
 }
-
