@@ -90,7 +90,7 @@ public class Place extends BaseEntity {
     @Column(name = "addr_detail", nullable = false, length = 100)
     private String addrDetail;
 
-    @Column(name = "location", columnDefinition = "geometry(Point,4326)")
+    @Column(name = "location", columnDefinition = "geography(Point,4326)")
     private Point location;
 
     protected Place() {

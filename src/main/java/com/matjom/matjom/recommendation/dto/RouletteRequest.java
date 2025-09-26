@@ -1,21 +1,12 @@
-package com.matjom.matjom.place.dto;
+package com.matjom.matjom.recommendation.dto;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.util.Optional;
-import org.springframework.util.StringUtils;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Setter
-@Getter
-public class PlaceSearchRequest {
+public class RouletteRequest {
 
     @NotNull(message = "위도(lat)는 필수입니다.")
     @DecimalMin(value = "-90.0", inclusive = true, message = "위도(lat)는 -90 이상이어야 합니다.")
@@ -30,28 +21,38 @@ public class PlaceSearchRequest {
     @Positive(message = "반경(radius)은 양수여야 합니다.")
     private Double radius;
 
-    @Positive(message = "size는 1 이상이어야 합니다.")
-    @Max(value = 500, message = "size는 최대 500까지 허용됩니다.")
-    private Integer size;
-
-    @Pattern(regexp = "^[A-Za-z0-9.,:_-]*$", message = "cursor 형식이 올바르지 않습니다.")
-    private String cursor;
-
     @Size(max = 200, message = "filters는 200자 이하여야 합니다.")
     private String filters;
 
-    public double radiusOrDefault(double defaultValue) {
-        return radius != null ? radius : defaultValue;
+    public Double getLat() {
+        return lat;
     }
 
-    public int sizeOrDefault(int defaultValue) {
-        return size != null ? size : defaultValue;
+    public void setLat(Double lat) {
+        this.lat = lat;
     }
 
-    public Optional<PlaceSearchCursor> parseCursor() {
-        if (!StringUtils.hasText(cursor)) {
-            return Optional.empty();
-        }
-        return Optional.ofNullable(PlaceSearchCursor.from(cursor));
+    public Double getLng() {
+        return lng;
+    }
+
+    public void setLng(Double lng) {
+        this.lng = lng;
+    }
+
+    public Double getRadius() {
+        return radius;
+    }
+
+    public void setRadius(Double radius) {
+        this.radius = radius;
+    }
+
+    public String getFilters() {
+        return filters;
+    }
+
+    public void setFilters(String filters) {
+        this.filters = filters;
     }
 }

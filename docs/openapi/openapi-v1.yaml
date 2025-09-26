@@ -1,0 +1,258 @@
+openapi: 3.0.3
+info:
+  title: MATJOM Lunch Recommendation API
+  version: v1
+  description: |
+    점심 추천 MVP v1 API 명세.
+    - 공통 응답은 ApiResponse 구조(success, data, error, timestamp)를 따른다.
+    - 검색 API는 커서 기반 페이지네이션과 결과 상한(500)을 지원한다.
+servers:
+  - url: https://api.example.com
+    description: Production (placeholder)
+  - url: https://staging.example.com
+    description: Staging (placeholder)
+
+paths:
+  /api/v1/places:
+    get:
+      summary: 장소 검색
+      description: |
+        사용자의 현재 위치(lat/lng)와 옵션 필터를 기준으로 가까운 장소를 검색한다.
+        - 거리 오름차순, 이후 placeId 오름차순으로 정렬된 커서 기반 페이지네이션을 지원한다.
+        - 500건을 초과하는 경우 meta.reason="too_many_results"와 안내 메시지를 반환한다.
+        - 10초 동안 최대 10회 요청 레이트리밋이 적용된다.
+      operationId: getPlaces
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+          description: 위도 (WGS84)
+          example: 37.5665
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+          description: 경도 (WGS84)
+          example: 126.9780
+        - name: radius
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: 1
+            default: 300
+          description: 검색 반경(미터). 생략 시 300m.
+          example: 200
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 20
+          description: 페이지당 결과 수. 최대 500.
+          example: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[0-9]+(\.[0-9]+)?:[0-9]+$'
+          description: 이전 응답의 nextCursor. "{distanceMeters}:{lastPlaceId}" 포맷.
+          example: "123.45:98765"
+        - name: filters
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+          description: 카테고리 등 추가 필터 문자열(추후 정의).
+      responses:
+        '200':
+          description: 검색 성공
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: 레이트리밋 허용 횟수(기본 10).
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: 현재 윈도우에서 남은 호출 횟수.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePlaceSearch'
+              examples:
+                normal:
+                  summary: 커서 페이징 중간 결과
+                  value:
+                    success: true
+                    timestamp: '2025-02-27T04:10:00Z'
+                    data:
+                      places:
+                        - placeId: 101
+                          name: 매콤식당
+                          distanceMeters: 45.678
+                        - placeId: 123
+                          name: 순대국명가
+                          distanceMeters: 98.123
+                      nextCursor: '98.12300:123'
+                      meta: null
+                tooManyResults:
+                  summary: 결과 상한 초과
+                  value:
+                    success: true
+                    timestamp: '2025-02-27T04:11:00Z'
+                    data:
+                      places:
+                        - placeId: 201
+                          name: 한끼식탁
+                          distanceMeters: 12.345
+                        - placeId: 205
+                          name: 수제버거샵
+                          distanceMeters: 15.678
+                        # ... 생략(500건)
+                      nextCursor: null
+                      meta:
+                        reason: too_many_results
+                        suggest: 검색 반경을 줄이거나 필터를 추가해 주세요.
+                lowResults:
+                  summary: 결과가 20건 미만일 때 제안 제공
+                  value:
+                    success: true
+                    timestamp: '2025-02-27T04:12:00Z'
+                    data:
+                      places:
+                        - placeId: 501
+                          name: 소담분식
+                          distanceMeters: 32.1
+                        - placeId: 502
+                          name: 다이닝마켓
+                          distanceMeters: 44.5
+                      nextCursor: null
+                      meta:
+                        reason: low_results
+                        suggest: 검색 결과가 적습니다. 반경을 늘리거나 필터를 완화해 보세요.
+        '400':
+          description: 잘못된 요청 파라미터
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+              examples:
+                invalidCursor:
+                  value:
+                    success: false
+                    timestamp: '2025-02-27T04:12:00Z'
+                    error:
+                      code: INVALID_REQUEST_PARAM
+                      message: cursor 형식이 올바르지 않습니다.
+        '429':
+          description: 레이트리밋 초과
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: 재시도까지 남은 초.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+              examples:
+                rateLimited:
+                  value:
+                    success: false
+                    timestamp: '2025-02-27T04:13:00Z'
+                    error:
+                      code: SEARCH_RATE_LIMIT_EXCEEDED
+                      message: 10초 동안 10회 요청 한도를 초과했습니다.
+
+components:
+  schemas:
+    ApiResponsePlaceSearch:
+      type: object
+      required: [success, timestamp, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          $ref: '#/components/schemas/PlaceSearchResponse'
+        error:
+          nullable: true
+          type: object
+    PlaceSearchResponse:
+      type: object
+      required: [places]
+      properties:
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlaceSummary'
+        nextCursor:
+          type: string
+          nullable: true
+          description: 다음 페이지 요청 시 사용할 커서. 마지막 페이지면 null.
+        meta:
+          $ref: '#/components/schemas/PlaceSearchMeta'
+          nullable: true
+    PlaceSummary:
+      type: object
+      required: [placeId, name, distanceMeters]
+      properties:
+        placeId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        distanceMeters:
+          type: number
+          format: double
+    PlaceSearchMeta:
+      type: object
+      required: [reason, suggest]
+      properties:
+        reason:
+          type: string
+          enum: [too_many_results, low_results]
+        suggest:
+          type: string
+    ApiResponseError:
+      type: object
+      required: [success, timestamp, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        timestamp:
+          type: string
+          format: date-time
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string

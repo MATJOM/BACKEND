@@ -2,7 +2,6 @@ package com.matjom.matjom.common.config;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.Optional;
 
 import org.springframework.context.annotation.Bean;
