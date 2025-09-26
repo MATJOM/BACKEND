@@ -4,14 +4,13 @@ import com.matjom.matjom.feed.dto.request.ReviewCreateRequestDTO;
 import com.matjom.matjom.feed.dto.request.ReviewUpdateRequestDTO;
 import com.matjom.matjom.feed.dto.response.EligibilityCheckResponseDTO;
 import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
+import com.matjom.matjom.feed.service.ReviewResponseAssembler;
 import com.matjom.matjom.feed.entity.review.Review;
-import com.matjom.matjom.feed.entity.review.ReviewStatus;
 import com.matjom.matjom.feed.repository.ReviewRepository;
+import com.matjom.matjom.feed.service.VisitEligibilityChecker;
+import com.matjom.matjom.feed.service.VisitEligibilityChecker.VisitEligibilityStatus; // 9월 26일 최종: 방문 자격 확인 재사용
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
-import com.matjom.matjom.moderation.ReviewModerationService;
-import com.matjom.matjom.moderation.report.dto.ReportReviewRequestDTO;
-import com.matjom.matjom.moderation.report.entity.ReportReason;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,19 +20,15 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import com.matjom.matjom.feed.event.ReviewCreatedEvent;
-import com.matjom.matjom.moderation.ReviewModerationService;
-import org.springframework.context.ApplicationEventPublisher;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
 public class ReviewService {
     private final ReviewRepository reviewRepository;
-    private final ReviewModerationService reviewModerationService;
-    private final ApplicationEventPublisher eventPublisher; // 9월26일 재수정: 통계/알림 연계를 위한 이벤트 발행
-    // TODO: VisitService 주입 필요 (visits 테이블 조회용)
+    private final VisitEligibilityChecker visitEligibilityChecker; // 9월 26일 최종: 방문 자격 검증 컴포넌트
+    private final ReviewResponseAssembler reviewResponseAssembler; // 9월 26일 최종: 이름을 포함한 DTO 조립
+    // TODO: 비속어 필터링 서비스 주입 필요
 
     /**
      * 리뷰 작성 자격 확인
@@ -42,30 +37,24 @@ public class ReviewService {
     public EligibilityCheckResponseDTO checkReviewEligibility(UUID userId, Long placeId, Long visitId) {
         log.info("리뷰 작성 자격 확인: userId={}, placeId={}, visitId={}", userId, placeId, visitId);
 
-        // 1. visits 테이블 조회: arrived_at NOT NULL AND state = 'ARRIVED' 확인
-        // TODO: VisitService.findByIdAndUserId(visitId, userId) 호출
-        // Visit visit = visitService.findByIdAndUserId(visitId, userId);
-        // if (visit == null) {
-        //     return EligibilityCheckResponse.notEligible("방문 기록을 찾을 수 없습니다", visitId, false, false, false);
-        // }
-        // if (visit.getArrivedAt() == null || !visit.getState().equals("ARRIVED")) {
-        //     return EligibilityCheckResponse.notEligible("도착 확인 후 작성 가능", visitId, false, false, true);
-        // }
+        VisitEligibilityStatus visitStatus = visitEligibilityChecker.check(userId, visitId); // 9월 26일 최종: 방문 존재/도착 여부 확인
 
-        // 2. 당일 내 방문인지 확인 (date_kst = today)
-        // LocalDate visitDate = visit.getArrivedAt().atZone(ZoneId.of("Asia/Seoul")).toLocalDate();
-        // if (!visitDate.equals(LocalDate.now(ZoneId.of("Asia/Seoul")))) {
-        //     return EligibilityCheckResponse.notEligible("당일 방문에만 작성 가능", visitId, true, false, false);
-        // }
-
-        // 3. 이미 리뷰 작성했는지 확인
-        boolean alreadyWritten = reviewRepository.existsByVisitId(visitId);
-        if (alreadyWritten) {
-            return EligibilityCheckResponseDTO.notEligible("이미 리뷰를 작성하셨습니다", visitId, true, true, true);
+        if (visitStatus == VisitEligibilityStatus.NOT_FOUND) {
+            return EligibilityCheckResponseDTO.notEligible("방문 기록을 찾을 수 없습니다", visitId,
+                    false, false, false, false); // 9월 26일 최종: 방문 없음
         }
 
-        // 모든 조건 통과
-        return EligibilityCheckResponseDTO.eligible(visitId);
+        if (visitStatus == VisitEligibilityStatus.NOT_ARRIVED) {
+            return EligibilityCheckResponseDTO.notEligible("도착 확인 후 작성 가능합니다", visitId,
+                    true, false, false, true); // 9월 26일 최종: 아직 도착하지 않음
+        }
+
+        if (reviewRepository.existsByVisitId(visitId)) {
+            return EligibilityCheckResponseDTO.notEligible("이미 리뷰를 작성하셨습니다", visitId,
+                    true, true, true, true); // 9월 26일 최종: 리뷰 중복 작성 방지
+        }
+
+        return EligibilityCheckResponseDTO.eligible(visitId); // 9월 26일 최종: 모든 조건 통과
     }
 
     /**
@@ -74,7 +63,6 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDTO createReview(UUID userId, ReviewCreateRequestDTO request) {
-
         log.info("리뷰 작성 시작: userId={}, placeId={}, visitId={}",
                 maskUserId(userId), request.getPlaceId(), request.getVisitId());
 
@@ -86,17 +74,25 @@ public class ReviewService {
         if (!eligibility.getEligible()) {
             log.info("리뷰 작성 실패: userId={}, visitId={}, reason={}",
                     maskUserId(userId), request.getVisitId(), eligibility.getReason());
-            if (!eligibility.getVisitArrived()) {
-                throw new FeedException(ErrorCode.ARRIVAL_NOT_CONFIRMED, eligibility.getReason());
+            if (!Boolean.TRUE.equals(eligibility.getVisitExists())) {
+                throw new FeedException(ErrorCode.REVIEW_NOT_ALLOWED, eligibility.getReason()); // 9월 26일 최종: 방문 미존재
             }
-            if (eligibility.getAlreadyWritten()) {
-                throw new FeedException(ErrorCode.REVIEW_ALREADY_EXISTS, eligibility.getReason());
+            if (!Boolean.TRUE.equals(eligibility.getVisitArrived())) {
+                throw new FeedException(ErrorCode.ARRIVAL_NOT_CONFIRMED, eligibility.getReason()); // 9월 26일 최종: 미도착
+            }
+            if (Boolean.TRUE.equals(eligibility.getAlreadyWritten())) {
+                throw new FeedException(ErrorCode.REVIEW_ALREADY_EXISTS, eligibility.getReason()); // 9월 26일 최종: 중복 작성
             }
             throw new FeedException(ErrorCode.REVIEW_NOT_ALLOWED, eligibility.getReason());
         }
 
         // 2. 비속어 필터링
-        reviewModerationService.validateText(request.getText());
+        // TODO: 비속어 필터링 서비스 연동
+        // if (profanityFilterService.containsProfanity(request.getText())) {
+        //     // 9월24일 재수정: IllegalArgumentException -> FeedException 변경
+        //     throw new FeedException(ErrorCode.REVIEW_BAD_LANGUAGE);
+        // }
+
 
         // 3. 리뷰 생성 및 저장
         Review review = Review.builder()
@@ -104,24 +100,17 @@ public class ReviewService {
                 .placeId(request.getPlaceId())
                 .visitId(request.getVisitId())
                 .text(request.getText())
-                .status(ReviewStatus.ACTIVE)
-                .flagged(false)
-                .build();
+                .build(); // 9월 26일 최종: 최소 필드만 설정
 
         Review savedReview = reviewRepository.save(review);
 
         // 4. 통계 업데이트 (비동기 또는 이벤트 발생)
-        // 9월26일 재수정: 통계/알림 파이프라인 연동을 위한 이벤트 발행
-        eventPublisher.publishEvent(new ReviewCreatedEvent(
-                savedReview.getId(),
-                savedReview.getUserId(),
-                savedReview.getPlaceId(),
-                savedReview.getCreatedAt()
-        ));
+        // TODO: 통계 업데이트 이벤트 발생
+        // applicationEventPublisher.publishEvent(new ReviewCreatedEvent(savedReview));
 
         log.info("리뷰 작성 완료: reviewId={}, userId={}",
                 savedReview.getId(), maskUserId(userId));
-        return ReviewResponseDTO.from(savedReview);
+        return reviewResponseAssembler.toDto(savedReview); // 9월 26일 최종: 이름 포함 응답
     }
 
     /**
@@ -129,7 +118,6 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDTO updateReview(UUID userId, UUID reviewId, ReviewUpdateRequestDTO request) {
-
         log.info("리뷰 수정 요청: userId={}, reviewId={}",
                 maskUserId(userId), reviewId);
         Review review = reviewRepository.findById(reviewId)
@@ -146,13 +134,17 @@ public class ReviewService {
         }
 
         // 비속어 필터링
-        reviewModerationService.validateText(request.getText());
+        // TODO: 비속어 필터링 서비스 연동
+        // if (profanityFilterService.containsProfanity(request.getText())) {
+        //     // 9월24일 재수정: IllegalArgumentException -> FeedException 변경
+        //     throw new FeedException(ErrorCode.REVIEW_BAD_LANGUAGE);
+        // }
 
         review.setText(request.getText());
 
         log.info("리뷰 수정 완료: reviewId={}",
                 reviewId);
-        return ReviewResponseDTO.from(review);
+        return reviewResponseAssembler.toDto(review); // 9월 26일 최종
     }
 
     /**
@@ -182,7 +174,7 @@ public class ReviewService {
         List<Review> reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return reviews.stream()
                 .filter(review -> !review.isDeleted()) // 삭제된 리뷰 제외
-                .map(ReviewResponseDTO::from)
+                .map(reviewResponseAssembler::toDto) // 9월 26일 최종
                 .collect(Collectors.toList());
     }
 
@@ -192,7 +184,7 @@ public class ReviewService {
     public List<ReviewResponseDTO> getPlaceReviews(Long placeId) {
         List<Review> reviews = reviewRepository.findActiveReviewsByPlaceId(placeId);
         return reviews.stream()
-                .map(ReviewResponseDTO::from)
+                .map(reviewResponseAssembler::toDto) // 9월 26일 최종
                 .collect(Collectors.toList());
     }
 
@@ -202,7 +194,7 @@ public class ReviewService {
     public List<ReviewResponseDTO> getUserPlaceReviews(UUID userId, Long placeId) {
         List<Review> reviews = reviewRepository.findByUserIdAndPlaceId(userId, placeId);
         return reviews.stream()
-                .map(ReviewResponseDTO::from)
+                .map(reviewResponseAssembler::toDto) // 9월 26일 최종
                 .collect(Collectors.toList());
     }
 

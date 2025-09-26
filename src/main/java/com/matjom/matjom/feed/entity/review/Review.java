@@ -1,11 +1,21 @@
 package com.matjom.matjom.feed.entity.review;
 
 import com.matjom.matjom.common.entity.BaseEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import jakarta.persistence.*;
-import lombok.*;
-
-import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -14,8 +24,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"userId"}) // 민감한 정보 제외
-public class Review extends BaseEntity{
+public class Review extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -36,66 +45,15 @@ public class Review extends BaseEntity{
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    @Setter
     @Builder.Default
-    private ReviewStatus status = ReviewStatus.ACTIVE;
-
-    @Column(name = "flagged", nullable = false)
-    @Setter
-    @Builder.Default
-    private Boolean flagged = false;
-
-    // 9월26일 수정제안: 경고 누적 개수를 보관합니다.
-    @Column(name = "warning_count", nullable = false)
-    @Builder.Default
-    private int warningCount = 0;
-
-    // 9월26일 수정제안: 마지막 경고 발급 시각을 추적합니다.
-    @Column(name = "last_warning_at")
-    private OffsetDateTime lastWarningAt;
-
-        // 비즈니스 메서드
-    public void hide() {
-        this.status = ReviewStatus.HIDDEN;
-    }
+    private ReviewStatus status = ReviewStatus.ACTIVE; // 9월 26일 최종: 상태는 ACTIVE/DELETED만 사용
 
     public void delete() {
-        this.status = ReviewStatus.DELETED;
+        this.status = ReviewStatus.DELETED; // 9월 26일 최종: 삭제 시 상태 전환만 수행
         this.markDeleted();
     }
 
-    public void flag() {
-        this.flagged = true;
-    }
-
-    public boolean isActive() {
+    public boolean isActive() { // 9월 26일 최종: 심플한 활성 여부 판단
         return status == ReviewStatus.ACTIVE && !isDeleted();
-    }
-
-    // 9월26일 수정제안: 자동/수동 경고 시 공통으로 호출합니다.
-    public void recordWarning(OffsetDateTime issuedAt) {
-        this.warningCount += 1;
-        this.lastWarningAt = issuedAt;
-        this.flagged = true;
-    }
-
-    // 9월26일 수정제안: 관리자가 경고를 해제할 때 사용합니다.
-    public void resetWarnings() {
-        this.warningCount = 0;
-        this.lastWarningAt = null;
-        this.flagged = false;
-        if (this.status == ReviewStatus.HIDDEN && !isDeleted()) {
-            this.status = ReviewStatus.ACTIVE;
-        }
-    }
-
-    // 편의 생성자
-    public Review(UUID userId, Long placeId, Long visitId, String text) {
-        this.userId = userId;
-        this.placeId = placeId;
-        this.visitId = visitId;
-        this.text = text;
-        this.status = ReviewStatus.ACTIVE;
-        this.flagged = false;
     }
 }

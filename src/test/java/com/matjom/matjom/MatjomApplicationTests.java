@@ -10,7 +10,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import org.junit.jupiter.api.Disabled;
+
 @SpringBootTest
+@Disabled("Requires Docker to run Testcontainers")
 @ActiveProfiles("test")
 @Testcontainers
 class MatjomApplicationTests {
