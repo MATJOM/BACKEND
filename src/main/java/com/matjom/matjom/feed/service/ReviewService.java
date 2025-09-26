@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.matjom.matjom.feed.event.ReviewCreatedEvent;
+import com.matjom.matjom.moderation.ReviewModerationService;
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -28,7 +32,7 @@ import java.util.stream.Collectors;
 public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ReviewModerationService reviewModerationService;
-    // TODO: 비속어 필터링 서비스 주입 필요
+    private final ApplicationEventPublisher eventPublisher; // 9월26일 재수정: 통계/알림 연계를 위한 이벤트 발행
     // TODO: VisitService 주입 필요 (visits 테이블 조회용)
 
     /**
@@ -92,12 +96,7 @@ public class ReviewService {
         }
 
         // 2. 비속어 필터링
-        // TODO: 비속어 필터링 서비스 연동
-        // if (profanityFilterService.containsProfanity(request.getText())) {
-        //     // 9월24일 재수정: IllegalArgumentException -> FeedException 변경
-        //     throw new FeedException(ErrorCode.REVIEW_BAD_LANGUAGE);
-        // }
-
+        reviewModerationService.validateText(request.getText());
 
         // 3. 리뷰 생성 및 저장
         Review review = Review.builder()
@@ -112,8 +111,13 @@ public class ReviewService {
         Review savedReview = reviewRepository.save(review);
 
         // 4. 통계 업데이트 (비동기 또는 이벤트 발생)
-        // TODO: 통계 업데이트 이벤트 발생
-        // applicationEventPublisher.publishEvent(new ReviewCreatedEvent(savedReview));
+        // 9월26일 재수정: 통계/알림 파이프라인 연동을 위한 이벤트 발행
+        eventPublisher.publishEvent(new ReviewCreatedEvent(
+                savedReview.getId(),
+                savedReview.getUserId(),
+                savedReview.getPlaceId(),
+                savedReview.getCreatedAt()
+        ));
 
         log.info("리뷰 작성 완료: reviewId={}, userId={}",
                 savedReview.getId(), maskUserId(userId));
@@ -142,11 +146,7 @@ public class ReviewService {
         }
 
         // 비속어 필터링
-        // TODO: 비속어 필터링 서비스 연동
-        // if (profanityFilterService.containsProfanity(request.getText())) {
-        //     // 9월24일 재수정: IllegalArgumentException -> FeedException 변경
-        //     throw new FeedException(ErrorCode.REVIEW_BAD_LANGUAGE);
-        // }
+        reviewModerationService.validateText(request.getText());
 
         review.setText(request.getText());
 
