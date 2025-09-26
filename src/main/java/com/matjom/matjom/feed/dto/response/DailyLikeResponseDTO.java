@@ -14,16 +14,18 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class DailyLikeResponseDTO {
-    private UUID likeId; // 9월 26일 최종: 핵심 식별자만 제공
-    private Long placeId;
+    private UUID likeId;
+    private String userName;
+    private String placeName;
     private Long visitId;
     private LikeStatus status;
     private OffsetDateTime createdAt;
 
-    public static DailyLikeResponseDTO from(DailyLike like) {
+    public static DailyLikeResponseDTO of(DailyLike like, String userName, String placeName) {
         return DailyLikeResponseDTO.builder()
                 .likeId(like.getId())
-                .placeId(like.getPlaceId())
+                .userName(userName)
+                .placeName(placeName)
                 .visitId(like.getVisitId())
                 .status(like.getStatus())
                 .createdAt(like.getCreatedAt())

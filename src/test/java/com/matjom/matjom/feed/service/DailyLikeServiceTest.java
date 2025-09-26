@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 
 import com.matjom.matjom.feed.dto.response.EligibilityCheckResponseDTO;
 import com.matjom.matjom.feed.repository.DailyLikeRepository;
+import com.matjom.matjom.feed.service.DailyLikeResponseAssembler;
 import com.matjom.matjom.feed.service.VisitEligibilityChecker.VisitEligibilityStatus;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +24,9 @@ class DailyLikeServiceTest {
 
     @Mock
     private VisitEligibilityChecker visitEligibilityChecker;
+
+    @Mock
+    private DailyLikeResponseAssembler dailyLikeResponseAssembler;
 
     @InjectMocks
     private DailyLikeService dailyLikeService;

@@ -51,6 +51,8 @@ class DailyLikeServiceIntegrationTest {
         DailyLike saved = dailyLikeRepository.findById(response.getLikeId()).orElseThrow();
         assertThat(saved.getStatus()).isEqualTo(LikeStatus.ACTIVE);
         assertThat(saved.getPlaceId()).isEqualTo(PLACE_ID);
+        assertThat(response.getUserName()).isEqualTo("알 수 없음");
+        assertThat(response.getPlaceName()).isEqualTo("알 수 없음");
     }
 
     @Test
@@ -101,7 +103,7 @@ class DailyLikeServiceIntegrationTest {
         assertThat(likes)
                 .hasSize(1)
                 .first()
-                .extracting(DailyLikeResponseDTO::getLikeId)
-                .isEqualTo(created.getLikeId());
+                .extracting(DailyLikeResponseDTO::getUserName, DailyLikeResponseDTO::getPlaceName)
+                .containsExactly("알 수 없음", "알 수 없음");
     }
 }
