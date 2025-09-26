@@ -23,8 +23,18 @@
 - `src/main/resources/application.yml` - 반경/체류/간격/TTL/상한 등 파라미터 외부화.
 - `src/main/resources/schema-postgres.sql` - PostGIS 타입/인덱스 보강.
 - `docs/openapi/openapi-v1.yaml` - v1 스펙(커서/429/멱등/상한 500 안내) 반영.
+- `docs/RUA/explanations/session-lifecycle-main-issue.md` - 4.x 메인 이슈 및 서브 이슈 관리 문서.
+- `docs/RUA/explanations/session-lifecycle-task-guide.md` - 세션 라이프사이클 사전 학습 가이드.
+- `docs/RUA/explanations/session-lifecycle-delivery-summary.md` - 4.x 완료 후 결과 요약 템플릿.
 - `docs/adr/ADR-00X-arrival-policy-30m-3min.md` - 도착 판정·유예 정책 근거.
 - `infra/grafana/dashboards/search-session-auth.json` - 대시보드 JSON.
+- `src/main/java/com/matjom/matjom/visit/api/VisitSessionController.java` - 세션 시작 API 엔드포인트.
+- `src/main/java/com/matjom/matjom/visit/service/VisitSessionService.java` - 세션 시작 멱등/검증 비즈니스 로직.
+- `src/main/java/com/matjom/matjom/visit/dto/VisitSessionStartRequest.java` - 세션 시작 요청 DTO.
+- `src/main/java/com/matjom/matjom/visit/dto/VisitSessionStartResponse.java` - 세션 시작 응답 DTO.
+- `src/main/java/com/matjom/matjom/place/repository/PlaceJpaRepository.java` - 장소 조회용 Spring Data 리포지토리.
+- `src/main/java/com/matjom/matjom/user/repository/UserRepository.java` - 사용자 조회용 Spring Data 리포지토리.
+- `src/test/java/com/matjom/matjom/visit/service/VisitSessionServiceTest.java` - 세션 시작 서비스 단위 테스트.
 
 - `src/test/java/com/matjom/matjom/place/PlaceSearchServiceTest.java` - 검색 커서/상한/캐시 단위·통합 테스트.
 - `src/test/java/com/matjom/matjom/recommendation/service/RouletteServiceTest.java` - 균등성/멱등 재생/분포 테스트.
@@ -72,7 +82,7 @@
   - [x] 3.5 테스트/문서화: 무작위 분포 ±5%, 멱등 재생, OpenAPI 스펙 업데이트.
 
 - [ ] 4.0 세션 라이프사이클
-  - [ ] 4.1 `VisitSessionController.start()` 구현: 멱등키 필수, 중복 ACTIVE 방지(트랜잭션/UNIQUE 제약).
+  - [x] 4.1 `VisitSessionController.start()` 구현: 멱등키 필수, 중복 ACTIVE 방지(트랜잭션/UNIQUE 제약).
   - [ ] 4.2 `VisitSessionController.postLocation()` 구현: 위치 이벤트 수신 + `GeoFenceEvaluator` 호출.
   - [ ] 4.3 `GeoFenceEvaluator` 구현: 30m 내 판정, dwell 타이머 시작/정지, **유예 10s** 내 재진입 시 누적 유지 로직.
   - [ ] 4.4 정확도 가드: `accuracy_m>30`이면 dwell 카운트 **일시 정지**(포지션 기록은 지속).

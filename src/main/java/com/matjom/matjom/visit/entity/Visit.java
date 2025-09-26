@@ -18,6 +18,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Objects;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -86,6 +87,17 @@ public class Visit extends BaseEntity {
         // JPA
     }
 
+    public Visit(User user,
+                 Place place,
+                 ClientMode clientMode,
+                 OffsetDateTime startedAt) {
+        this.user = Objects.requireNonNull(user, "user");
+        this.place = Objects.requireNonNull(place, "place");
+        this.clientMode = clientMode == null ? ClientMode.NAVIGATION : clientMode;
+        this.startedAt = Objects.requireNonNull(startedAt, "startedAt");
+        this.state = VisitState.ACTIVE;
+    }
+
     public Long getId() {
         return id;
     }
@@ -145,4 +157,5 @@ public class Visit extends BaseEntity {
     public JsonNode getMeta() {
         return meta;
     }
+
 }
