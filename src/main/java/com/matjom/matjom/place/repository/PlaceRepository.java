@@ -7,6 +7,7 @@ import java.sql.Array;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -52,6 +53,33 @@ public class PlaceRepository {
             LIMIT :limit
             """;
 
+
+    private static final RowMapper<PlaceSummary> PLACE_SUMMARY_ROW_MAPPER = new RowMapper<PlaceSummary>() {
+        @Override
+        public PlaceSummary mapRow(java.sql.ResultSet rs, int rowNum) throws SQLException {
+            return new PlaceSummary(
+                    rs.getLong("place_id"),
+                    rs.getString("name"),
+                    rs.getDouble("distance_m"));
+        }
+    };
+
+    private static final RowMapper<RouletteCandidate> ROULETTE_CANDIDATE_ROW_MAPPER = new RowMapper<RouletteCandidate>() {
+        @Override
+        public RouletteCandidate mapRow(java.sql.ResultSet rs, int rowNum) throws SQLException {
+            Array categoryArray = rs.getArray("category");
+            List<String> categoryList = categoryArray == null
+                    ? List.of()
+                    : Arrays.asList((String[]) categoryArray.getArray());
+            return new RouletteCandidate(
+                    rs.getLong("place_id"),
+                    rs.getString("name"),
+                    rs.getDouble("distance_m"),
+                    List.copyOf(categoryList)
+            );
+        }
+    };
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
     public PlaceRepository(NamedParameterJdbcTemplate jdbcTemplate) {
@@ -63,7 +91,7 @@ public class PlaceRepository {
                                      double radiusMeters,
                                      int limit,
                                      PlaceSearchCursor cursor,
-                                     String filters) {
+                                     String unusedFilters) {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("lat", lat)
                 .addValue("lng", lng)
@@ -74,12 +102,7 @@ public class PlaceRepository {
 
         // TODO: filters 적용 로직은 후속 태스크에서 구현
 
-        return jdbcTemplate.query(SEARCH_SQL, params, (rs, rowNum) ->
-                new PlaceSummary(
-                        rs.getLong("place_id"),
-                        rs.getString("name"),
-                        rs.getDouble("distance_m"))
-        );
+        return jdbcTemplate.query(SEARCH_SQL, params, PLACE_SUMMARY_ROW_MAPPER);
     }
 
     public List<RouletteCandidate> findRouletteCandidates(double lat,
@@ -94,21 +117,6 @@ public class PlaceRepository {
                 .addValue("limit", limit)
                 .addValue("categories", categories == null || categories.isEmpty() ? null : categories.toArray(new String[0]));
 
-        return jdbcTemplate.query(ROULETTE_SQL, params, (rs, rowNum) -> {
-            try {
-                Array categoryArray = rs.getArray("category");
-                List<String> categoryList = categoryArray == null
-                        ? List.of()
-                        : Arrays.asList((String[]) categoryArray.getArray());
-                return new RouletteCandidate(
-                        rs.getLong("place_id"),
-                        rs.getString("name"),
-                        rs.getDouble("distance_m"),
-                        List.copyOf(categoryList)
-                );
-            } catch (SQLException e) {
-                throw new IllegalStateException("카테고리 데이터를 읽는 중 오류가 발생했습니다.", e);
-            }
-        });
+        return jdbcTemplate.query(ROULETTE_SQL, params, ROULETTE_CANDIDATE_ROW_MAPPER);
     }
 }

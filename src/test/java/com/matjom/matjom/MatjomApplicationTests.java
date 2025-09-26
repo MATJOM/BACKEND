@@ -27,9 +27,24 @@ class MatjomApplicationTests {
 
     @DynamicPropertySource
     static void datasourceConfig(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("spring.datasource.url", new java.util.function.Supplier<Object>() {
+            @Override
+            public String get() {
+                return POSTGRES.getJdbcUrl();
+            }
+        });
+        registry.add("spring.datasource.username", new java.util.function.Supplier<Object>() {
+            @Override
+            public String get() {
+                return POSTGRES.getUsername();
+            }
+        });
+        registry.add("spring.datasource.password", new java.util.function.Supplier<Object>() {
+            @Override
+            public String get() {
+                return POSTGRES.getPassword();
+            }
+        });
     }
 
 	@Test

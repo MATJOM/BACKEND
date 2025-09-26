@@ -1,7 +1,5 @@
 package com.matjom.matjom.common.ratelimit;
 
-import java.time.Duration;
-
 /**
  * 결과 상한 500 처리 이후 적용되는 검색 API 전용 레이트리밋 결과 값.
  *

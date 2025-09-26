@@ -33,6 +33,7 @@ class RouletteControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @SuppressWarnings("removal")
     @MockBean
     private RouletteService rouletteService;
 

@@ -8,12 +8,10 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
@@ -66,7 +64,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             }
 
             if (blockingResult != null) {
-                consumed.forEach(rateLimiter::rollback);
+                for (RateLimitResult result : consumed) {
+                    rateLimiter.rollback(result);
+                }
                 writeTooManyResponse(response, blockingResult);
                 return;
             }

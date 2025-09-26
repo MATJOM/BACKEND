@@ -22,6 +22,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.PrecisionModel;
 
+@SuppressWarnings("unused")
 @Entity
 @Table(name = "places", indexes = {
         @Index(name = "idx_places_provider_id", columnList = "provider_id"),
@@ -126,7 +127,7 @@ public class Place extends BaseEntity {
     }
 
     public void setCategory(List<String> category) {
-        this.category = category == null ? null : category.toArray(String[]::new);
+        this.category = category == null ? null : category.toArray(new String[0]);
     }
 
     public String getProviderId() {

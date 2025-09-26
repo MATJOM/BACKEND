@@ -21,12 +21,13 @@ import com.matjom.matjom.place.repository.PlaceRepository;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -81,7 +82,7 @@ class PlaceSearchServiceTest {
         PlaceSearchResponse response = placeSearchService.search(buildRequest());
 
         assertThat(response.places()).containsExactlyElementsOf(summaries);
-        verify(placeRepository).search(anyDouble(), anyDouble(), anyDouble(), eq(501), isNull(), eq((String) null));
+        verify(placeRepository).search(anyDouble(), anyDouble(), anyDouble(), eq(21), isNull(), eq((String) null));
         verify(valueOperations).set(anyString(), anyString(), eq(Duration.ofSeconds(60)));
     }
 
@@ -102,9 +103,11 @@ class PlaceSearchServiceTest {
         PlaceSearchResponse response = placeSearchService.search(request);
 
         assertThat(response.places()).hasSize(2);
-        assertThat(response.places())
-                .extracting(PlaceSummary::placeId)
-                .containsExactly(10L, 20L);
+        List<Long> placeIds = new ArrayList<>();
+        for (PlaceSummary summary : response.places()) {
+            placeIds.add(summary.placeId());
+        }
+        assertThat(placeIds).containsExactly(10L, 20L);
         assertThat(response.nextCursor()).isEqualTo("45.67891:20");
     }
 
@@ -130,9 +133,10 @@ class PlaceSearchServiceTest {
     @Test
     void attachesTooManyResultsMetaWhenMoreThanMaxLimit() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        List<PlaceSummary> summaries = IntStream.rangeClosed(1, 501)
-                .mapToObj(i -> new PlaceSummary((long) i, "Place " + i, (double) i))
-                .toList();
+        List<PlaceSummary> summaries = new ArrayList<>();
+        for (int i = 1; i <= 501; i++) {
+            summaries.add(new PlaceSummary((long) i, "Place " + i, (double) i));
+        }
         when(placeRepository.search(anyDouble(), anyDouble(), anyDouble(), anyInt(), any(), any()))
                 .thenReturn(summaries);
 
@@ -151,9 +155,10 @@ class PlaceSearchServiceTest {
     @Test
     void addsLowResultsSuggestionWhenResultsBelowThreshold() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        List<PlaceSummary> dataset = IntStream.rangeClosed(1, 5)
-                .mapToObj(i -> new PlaceSummary((long) i, "Place " + i, (double) i))
-                .toList();
+        List<PlaceSummary> dataset = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) {
+            dataset.add(new PlaceSummary((long) i, "Place " + i, (double) i));
+        }
         configureRepositoryDataset(dataset);
 
         PlaceSearchResponse response = placeSearchService.search(buildRequest());
@@ -167,9 +172,10 @@ class PlaceSearchServiceTest {
     @Test
     void paginatesAcrossPagesWithoutDuplicates() {
         when(valueOperations.get(anyString())).thenReturn(null);
-        List<PlaceSummary> dataset = IntStream.rangeClosed(1, 25)
-                .mapToObj(i -> new PlaceSummary((long) i, "Place " + i, i * 10.0))
-                .toList();
+        List<PlaceSummary> dataset = new ArrayList<>();
+        for (int i = 1; i <= 25; i++) {
+            dataset.add(new PlaceSummary((long) i, "Place " + i, i * 10.0));
+        }
         configureRepositoryDataset(dataset);
 
         List<Long> collectedIds = new ArrayList<>();
@@ -177,9 +183,9 @@ class PlaceSearchServiceTest {
         int safety = 0;
         while (safety++ < 5) {
             PlaceSearchResponse response = placeSearchService.search(request);
-            response.places().stream()
-                    .map(PlaceSummary::placeId)
-                    .forEach(collectedIds::add);
+            for (PlaceSummary summary : response.places()) {
+                collectedIds.add(summary.placeId());
+            }
 
             if (response.nextCursor() == null) {
                 break;
@@ -190,8 +196,11 @@ class PlaceSearchServiceTest {
 
         assertThat(collectedIds).doesNotContainNull();
         assertThat(collectedIds).doesNotHaveDuplicates();
-        assertThat(collectedIds).containsExactlyElementsOf(
-                dataset.stream().map(PlaceSummary::placeId).toList());
+        List<Long> expectedIds = new ArrayList<>();
+        for (PlaceSummary summary : dataset) {
+            expectedIds.add(summary.placeId());
+        }
+        assertThat(collectedIds).containsExactlyElementsOf(expectedIds);
     }
 
     @Test
@@ -216,32 +225,47 @@ class PlaceSearchServiceTest {
         PlaceSearchRequest request = buildRequest();
         request.setCursor("invalid");
 
-        assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> placeSearchService.search(request)))
-                .isInstanceOf(SearchException.class)
-                .hasMessageContaining("cursor");
+        SearchException caught = null;
+        try {
+            placeSearchService.search(request);
+        } catch (SearchException ex) {
+            caught = ex;
+        }
+        assertThat(caught).isNotNull();
+        assertThat(caught.getMessage()).contains("cursor");
     }
 
     private PlaceSearchRequest buildRequest() {
         PlaceSearchRequest request = new PlaceSearchRequest();
         request.setLat(37.5665);
         request.setLng(126.9780);
-        // radius와 size는 null -> 기본값 사용
+        // radius와 size는 null이면 기본값을 사용
         return request;
     }
 
     private void configureRepositoryDataset(List<PlaceSummary> dataset) {
         when(placeRepository.search(anyDouble(), anyDouble(), anyDouble(), anyInt(), any(), any()))
-                .thenAnswer(invocation -> {
-                    int limit = invocation.getArgument(3);
-                    PlaceSearchCursor cursor = invocation.getArgument(4);
-                    double cursorDistance = cursor == null ? Double.NEGATIVE_INFINITY : cursor.distanceMeters();
-                    long cursorId = cursor == null ? Long.MIN_VALUE : cursor.lastPlaceId();
+                .thenAnswer(new Answer<List<PlaceSummary>>() {
+                    @Override
+                    public List<PlaceSummary> answer(InvocationOnMock invocation) {
+                        int limit = invocation.getArgument(3);
+                        PlaceSearchCursor cursor = invocation.getArgument(4);
+                        double cursorDistance = cursor == null ? Double.NEGATIVE_INFINITY : cursor.distanceMeters();
+                        long cursorId = cursor == null ? Long.MIN_VALUE : cursor.lastPlaceId();
 
-                    return dataset.stream()
-                            .filter(summary -> summary.distanceMeters() > cursorDistance
-                                    || (summary.distanceMeters() == cursorDistance && summary.placeId() > cursorId))
-                            .limit(limit)
-                            .toList();
+                        List<PlaceSummary> results = new ArrayList<>();
+                        for (PlaceSummary summary : dataset) {
+                            boolean beyondCursorDistance = summary.distanceMeters() > cursorDistance;
+                            boolean sameDistanceHigherId = summary.distanceMeters() == cursorDistance && summary.placeId() > cursorId;
+                            if (beyondCursorDistance || sameDistanceHigherId) {
+                                results.add(summary);
+                            }
+                            if (results.size() >= limit) {
+                                break;
+                            }
+                        }
+                        return results;
+                    }
                 });
     }
 }

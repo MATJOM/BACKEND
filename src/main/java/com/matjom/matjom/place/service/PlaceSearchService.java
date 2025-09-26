@@ -52,7 +52,9 @@ public class PlaceSearchService {
             return cached;
         }
 
-        int fetchLimit = Math.max(pageSize + 1, MAX_FETCH_LIMIT);
+        int fetchLimit = pageSize == MAX_RESULTS_PER_SEARCH
+                ? MAX_RESULTS_PER_SEARCH + 1
+                : pageSize + 1;
         List<PlaceSummary> fetchedSummaries = placeRepository.search(lat, lng, radius, fetchLimit, cursorToken, request.getFilters());
 
         boolean exceedsMaxResults = fetchedSummaries.size() > MAX_RESULTS_PER_SEARCH;
@@ -96,14 +98,13 @@ public class PlaceSearchService {
     }
 
     private String buildCacheKey(double lat, double lng, double radius, int size, String cursor, String filters) {
-        return new StringBuilder("place:search:")
-                .append(String.format("lat=%.6f:", lat))
-                .append(String.format("lng=%.6f:", lng))
-                .append(String.format("radius=%.1f:", radius))
-                .append("size=").append(size).append(':')
-                .append("cursor=").append(cursor == null ? "" : cursor).append(':')
-                .append("filters=").append(filters == null ? "" : filters.trim())
-                .toString();
+        return "place:search:" +
+                String.format("lat=%.6f:", lat) +
+                String.format("lng=%.6f:", lng) +
+                String.format("radius=%.1f:", radius) +
+                "size=" + size + ':' +
+                "cursor=" + (cursor == null ? "" : cursor) + ':' +
+                "filters=" + (filters == null ? "" : filters.trim());
     }
 
     private String buildNextCursor(List<PlaceSummary> summaries, int pageSize) {

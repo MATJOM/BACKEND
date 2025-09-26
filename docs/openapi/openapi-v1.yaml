@@ -185,6 +185,100 @@ paths:
                       code: SEARCH_RATE_LIMIT_EXCEEDED
                       message: 10초 동안 10회 요청 한도를 초과했습니다.
 
+  /api/v1/recommendations/roulette:
+    post:
+      summary: 룰렛 추천
+      description: |
+        지정한 반경, 카테고리 조건에 따라 서버에서 후보를 조회하고 균등 확률로 한 곳을 추천한다.
+        - `Idempotency-Key` 헤더가 필수이며 60초 이내 동일한 요청은 저장된 응답을 재생한다.
+        - seed가 지정되면 동일한 seed로 동일 후보가 반환된다.
+      operationId: postRoulette
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            maxLength: 200
+          description: 멱등 보장을 위한 요청 키. 60초 동안 유지된다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouletteRequest'
+            examples:
+              default:
+                value:
+                  lat: 37.5665
+                  lng: 126.9780
+                  radius: 400
+                  limit: 120
+                  categories: ["korean", "noodles"]
+                  seed: null
+      responses:
+        '200':
+          description: 추천 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseRoulette'
+              examples:
+                success:
+                  value:
+                    success: true
+                    timestamp: '2025-02-27T05:00:00Z'
+                    data:
+                      placeId: 321
+                      name: 청계순대국
+                      distanceMeters: 83.5
+                      categories: ["korean"]
+                      meta:
+                        candidateCount: 48
+                        replayed: false
+        '204':
+          description: 추천 가능한 후보 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+              examples:
+                noCandidate:
+                  value:
+                    success: false
+                    timestamp: '2025-02-27T05:01:00Z'
+                    error:
+                      code: ROULETTE_NO_CANDIDATE
+                      message: 추천할 장소를 찾지 못했습니다.
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+              examples:
+                missingIdempotency:
+                  value:
+                    success: false
+                    timestamp: '2025-02-27T05:02:00Z'
+                    error:
+                      code: IDEMPOTENCY_KEY_REQUIRED
+                      message: Idempotency-Key 헤더가 필요합니다.
+        '409':
+          description: 동일한 Idempotency-Key로 다른 요청이 전달됨
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseError'
+              examples:
+                conflict:
+                  value:
+                    success: false
+                    timestamp: '2025-02-27T05:03:00Z'
+                    error:
+                      code: IDEMPOTENCY_KEY_CONFLICT
+                      message: 동일한 Idempotency-Key로 이미 처리된 요청과 본문이 일치하지 않습니다.
+
 components:
   schemas:
     ApiResponsePlaceSearch:
@@ -256,3 +350,79 @@ components:
               type: string
             message:
               type: string
+    ApiResponseRoulette:
+      type: object
+      required: [success, timestamp, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          $ref: '#/components/schemas/RouletteRecommendation'
+        error:
+          nullable: true
+          type: object
+    RouletteRecommendation:
+      type: object
+      required: [placeId, name, distanceMeters, categories, meta]
+      properties:
+        placeId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        distanceMeters:
+          type: number
+          format: double
+        categories:
+          type: array
+          items:
+            type: string
+        meta:
+          $ref: '#/components/schemas/RouletteMeta'
+    RouletteMeta:
+      type: object
+      required: [candidateCount, replayed]
+      properties:
+        candidateCount:
+          type: integer
+        replayed:
+          type: boolean
+    RouletteRequest:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        radius:
+          type: number
+          format: double
+          minimum: 1
+          default: 300
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 200
+        categories:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 30
+          maxItems: 5
+        seed:
+          type: integer
+          format: int64
+          nullable: true

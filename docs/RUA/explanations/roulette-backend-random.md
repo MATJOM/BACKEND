@@ -48,14 +48,20 @@ Headers: Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
 1. 멱등키 검증(3.1) → `RouletteService.recommend(request, key)` 호출
 2. 서비스는 멱등 저장소(`IdempotencyStore`, 3.3 단계에서 구현)와 연동해 다음을 수행
    ```java
-   return idempotencyStore.replayOrRun(idempotencyKey, request, () -> {
-       List<Candidate> candidates = placeRepository.findRouletteCandidates(...);
-       if (candidates.isEmpty()) throw new RecommendationException(ErrorCode.ROULETTE_NO_CANDIDATE);
-       int index = selectIndex(candidates.size(), request.getSeed());
-       Candidate chosen = candidates.get(index);
-       return RouletteResponseFactory.from(chosen, candidates.size());
+   return idempotencyStore.replayOrRun(idempotencyKey, requestHash, RouletteResponse.class, new IdempotencyCallback<RouletteResponse>() {
+       @Override
+       public RouletteResponse execute() {
+           List<Candidate> candidates = placeRepository.findRouletteCandidates(...);
+           if (candidates.isEmpty()) {
+               throw new RecommendationException(ErrorCode.ROULETTE_NO_CANDIDATE);
+           }
+           int index = selectIndex(candidates.size(), request.getSeed());
+           Candidate chosen = candidates.get(index);
+           return RouletteResponseFactory.from(chosen, candidates.size());
+       }
    });
    ```
+   - `requestHash`는 요청 본문을 ObjectMapper로 직렬화한 뒤 SHA-256으로 계산한 해시 문자열이다.
 3. `selectIndex`는 `ThreadLocalRandom` 또는 `new Random(seed)`로 균등 난수를 계산.
 4. 결과를 `RouletteResponse`로 감싸고, 후보 수/재생 여부 등의 메타 데이터를 함께 반환.
 
@@ -92,11 +98,11 @@ LIMIT :limit;
 
 ## 7. 테스트/문서화 (3.5)
 
-- **분포 테스트**: 동일 조건 1000회 호출 → 각 후보가 ±5% 이내인지 검증.
-- **멱등 테스트**: 동일 멱등키 재호출 시 저장된 응답을 재생하는지 확인.
-- **seed 테스트**: 특정 seed로 호출해 반복 결과 동일 확인.
-- **후보 없음**: 빈 후보 시 204 또는 `ErrorCode.ROULETTE_NO_CANDIDATE` 응답.
-- OpenAPI(`/docs/openapi/openapi-v1.yaml`)에 요청/응답/seed/멱등 시나리오 반영.
+- **분포 테스트**: `RouletteServiceTest.recommendDistributionRemainsWithinFivePercentTolerance`가 seed 0~599를 반복 호출해 각 후보가 ±5% 내에 분포하는지 검증한다.
+- **멱등 테스트**: 동일 멱등키 재호출 시 `InMemoryIdempotencyStoreTest`에서 재생/충돌 시나리오를 확인하고, 서비스 단에서는 재생 응답에 `meta.replayed=true`가 설정되는지 점검한다.
+- **seed 테스트**: deterministic seed 사용 시 항상 동일 후보가 선택됨을 `recommendSelectsCandidateDeterministicallyWithSeed`에서 확인한다.
+- **후보 없음**: 빈 후보 시 204 혹은 `ErrorCode.ROULETTE_NO_CANDIDATE`를 반환하도록 서비스 예외 흐름을 유지한다.
+- OpenAPI(`/docs/openapi/openapi-v1.yaml`)에 요청/응답/seed/멱등 시나리오(409, 204 포함)를 반영한다.
 
 ## 8. 참고 문서
 
