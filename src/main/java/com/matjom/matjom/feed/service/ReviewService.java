@@ -9,6 +9,9 @@ import com.matjom.matjom.feed.entity.review.ReviewStatus;
 import com.matjom.matjom.feed.repository.ReviewRepository;
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
+import com.matjom.matjom.moderation.ReviewModerationService;
+import com.matjom.matjom.moderation.report.dto.ReportReviewRequestDTO;
+import com.matjom.matjom.moderation.report.entity.ReportReason;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ReviewService {
     private final ReviewRepository reviewRepository;
+    private final ReviewModerationService reviewModerationService;
     // TODO: 비속어 필터링 서비스 주입 필요
     // TODO: VisitService 주입 필요 (visits 테이블 조회용)
 
@@ -66,6 +70,7 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDTO createReview(UUID userId, ReviewCreateRequestDTO request) {
+        reviewModerationService.validateText(request.getText());
         log.info("리뷰 작성 시작: userId={}, placeId={}, visitId={}",
                 maskUserId(userId), request.getPlaceId(), request.getVisitId());
 
@@ -120,6 +125,7 @@ public class ReviewService {
      */
     @Transactional
     public ReviewResponseDTO updateReview(UUID userId, UUID reviewId, ReviewUpdateRequestDTO request) {
+        reviewModerationService.validateText(request.getText());
         log.info("리뷰 수정 요청: userId={}, reviewId={}",
                 maskUserId(userId), reviewId);
         Review review = reviewRepository.findById(reviewId)
@@ -147,6 +153,17 @@ public class ReviewService {
         log.info("리뷰 수정 완료: reviewId={}",
                 reviewId);
         return ReviewResponseDTO.from(review);
+    }
+
+    @Transactional
+    public void reportReview(UUID userId, UUID reviewId,
+                             ReportReason reason, String description) {
+        ReportReviewRequestDTO request = ReportReviewRequestDTO.builder()
+                .reason(reason)
+                .description(description)
+                .build();
+
+        reviewModerationService.reportReview(reviewId, userId, request);
     }
 
     /**

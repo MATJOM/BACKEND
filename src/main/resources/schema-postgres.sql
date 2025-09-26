@@ -124,6 +124,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     text VARCHAR(140) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     flagged BOOLEAN NOT NULL DEFAULT false,
+    warning_count INTEGER NOT NULL DEFAULT 0,        -- 9월26일 수정제안: 경고 누적 횟수
+    last_warning_at TIMESTAMPTZ,                     -- 9월26일 수정제안: 마지막 경고 시각
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(), -- 9월 24일 수정: BaseEntity 표준
     updated_at TIMESTAMPTZ, -- 9월 24일 수정: BaseEntity 표준
     deleted_at TIMESTAMPTZ, -- 9월 24일 수정: BaseEntity 표준

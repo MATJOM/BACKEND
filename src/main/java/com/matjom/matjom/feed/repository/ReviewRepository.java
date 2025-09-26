@@ -32,6 +32,10 @@ public interface ReviewRepository extends JpaRepository<Review,UUID> {
     // 신고된 리뷰 조회
     List<Review> findByFlaggedTrueAndStatusOrderByCreatedAtDesc(ReviewStatus status);
 
+    // 9월26일 수정제안: 자동 금칙어 검사에서 이미 삭제된 리뷰는 제외합니다.
+    @Query("SELECT r FROM Review r WHERE r.deletedAt IS NULL")
+    List<Review> findAllNotDeleted();
+
     // 사용자가 특정 장소에 작성한 리뷰들 (추천 알고리즘용) - 9월 24일 수정: BaseEntity의 deletedAt 필드 사용
     @Query("SELECT r FROM Review r WHERE r.userId = :userId AND r.placeId = :placeId AND r.deletedAt IS NULL ORDER BY r.createdAt DESC")
     List<Review> findByUserIdAndPlaceId(@Param("userId") UUID userId, @Param("placeId") Long placeId);

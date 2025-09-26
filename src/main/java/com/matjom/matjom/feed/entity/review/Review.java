@@ -5,6 +5,7 @@ import com.matjom.matjom.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -44,6 +45,15 @@ public class Review extends BaseEntity{
     @Builder.Default
     private Boolean flagged = false;
 
+    // 9월26일 수정제안: 경고 누적 개수를 보관합니다.
+    @Column(name = "warning_count", nullable = false)
+    @Builder.Default
+    private int warningCount = 0;
+
+    // 9월26일 수정제안: 마지막 경고 발급 시각을 추적합니다.
+    @Column(name = "last_warning_at")
+    private OffsetDateTime lastWarningAt;
+
         // 비즈니스 메서드
     public void hide() {
         this.status = ReviewStatus.HIDDEN;
@@ -60,6 +70,23 @@ public class Review extends BaseEntity{
 
     public boolean isActive() {
         return status == ReviewStatus.ACTIVE && !isDeleted();
+    }
+
+    // 9월26일 수정제안: 자동/수동 경고 시 공통으로 호출합니다.
+    public void recordWarning(OffsetDateTime issuedAt) {
+        this.warningCount += 1;
+        this.lastWarningAt = issuedAt;
+        this.flagged = true;
+    }
+
+    // 9월26일 수정제안: 관리자가 경고를 해제할 때 사용합니다.
+    public void resetWarnings() {
+        this.warningCount = 0;
+        this.lastWarningAt = null;
+        this.flagged = false;
+        if (this.status == ReviewStatus.HIDDEN && !isDeleted()) {
+            this.status = ReviewStatus.ACTIVE;
+        }
     }
 
     // 편의 생성자
