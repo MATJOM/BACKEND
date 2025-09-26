@@ -41,6 +41,7 @@ public enum ErrorCode {
     SEARCH_EMPTY_RESULT(HttpStatus.OK, "검색 결과가 없습니다."),
     SEARCH_RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "요청 제한을 초과했습니다."),
     SEARCH_RELAX_NOT_CONSENTED(HttpStatus.BAD_REQUEST, "빈 결과 완화 동의가 필요합니다."),
+    IDEMPOTENCY_KEY_REQUIRED(HttpStatus.BAD_REQUEST, "Idempotency-Key 헤더가 필요합니다."),
     ROULETTE_NO_CANDIDATE(HttpStatus.NO_CONTENT, "룰렛 후보가 없습니다."),
 
     // ====== Feed ======

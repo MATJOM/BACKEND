@@ -57,18 +57,15 @@
 - [ ] 2.0 검색 API(v1)
   - [x] 2.1 `PlaceController.getPlaces()` 스켈레톤 + 요청 파라미터 검증(`lat,lng,radius,size,cursor,filters`).
   - [x] 2.2 `PlaceSearchService.search()`에서 캐시(60s) 선조회 → 미스 시 PostGIS 질의 수행. (`PlaceRepository` native 질의 + Redis 60s 캐시)
-  - [ ] 2.3 커서 페이징 구현: 정렬 `distance ASC, id ASC`; 커서(`distance,lastId`) 파싱/검증/다음 커서 생성.
-  - [ ] 2.4 결과 상한 500 처리: 501+면 `200` + `meta.reason="too_many_results"` + `suggest`.
-  - [ ] 2.5 레이트리밋(10/10s user/ip) 적용 및 `Retry-After` 헤더 세팅.
-  - [ ] 2.6 OpenAPI 문서에 커서/상한/메타 필드/429 규약 반영.
-  - [ ] 2.7 단위/통합 테스트: 무중복/무누락, 커서 경계, `<20건` 필터 제안, `>500건` 메시지.
+  - [x] 2.3 커서 페이징 구현: 정렬 `distance ASC, id ASC`; 커서(`distance,lastId`) 파싱/검증/다음 커서 생성.
+  - [x] 2.4 결과 상한 500 처리: 501+면 `200` + `meta.reason="too_many_results"` + `suggest`.
+  - [x] 2.5 레이트리밋(10/10s user/ip) 적용 및 `Retry-After` 헤더 세팅.
+  - [x] 2.6 OpenAPI 문서에 커서/상한/메타 필드/429 규약 반영.
+  - [x] 2.7 단위/통합 테스트: 무중복/무누락, 커서 경계, `<20건` 필터 제안, `>500건` 메시지.
 
 - [ ] 3.0 룰렛 API(v1)
-  - [ ] 3.1 `RouletteController.postRoulette()` + `Idempotency-Key` 헤더 필수 검증.
-  - [ ] 3.2 `RouletteService`에서 동일 조건 후보군 생성(검색과 동일 필터/정렬) 후 균등 난수 선택.
-  - [ ] 3.3 멱등 재생: 동일 파라미터+멱등키 60s 동안 저장 응답 재생(본문/헤더 모두).
-  - [ ] 3.4 (옵션) `seed` 파라미터 지원 여부 플래그로 제어(기본 OFF, TBD).
-  - [ ] 3.5 테스트: 1) 동일 키 3회 동일 응답, 2) 서로 다른 키 1000회 분포 ±5% 이내.
+  - [x] 3.1 `RouletteController.postRoulette()` + `Idempotency-Key` 헤더 필수 검증.
+  - [ ] 3.x (프론트 전담) 검색 결과 기반 무작위 선택/멱등 재생 — `docs/RUA/explanations/frontend-roulette-random.md` 참고.
 
 - [ ] 4.0 세션 라이프사이클
   - [ ] 4.1 `VisitSessionController.start()` 구현: 멱등키 필수, 중복 ACTIVE 방지(트랜잭션/UNIQUE 제약).

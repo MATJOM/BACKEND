@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import java.util.Optional;
+import org.springframework.util.StringUtils;
 
 public class PlaceSearchRequest {
 
@@ -87,5 +89,12 @@ public class PlaceSearchRequest {
 
     public int sizeOrDefault(int defaultValue) {
         return size != null ? size : defaultValue;
+    }
+
+    public Optional<PlaceSearchCursor> parseCursor() {
+        if (!StringUtils.hasText(cursor)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(PlaceSearchCursor.from(cursor));
     }
 }
