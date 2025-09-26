@@ -28,7 +28,8 @@
 ### Step 1. DTO 확장
 - `PlaceSearchResponse`에 `Meta(reason, suggest)` 레코드를 추가합니다.
 - 생성자 오버로드를 제공해 기존 2인자 생성 로직과 호환되도록 합니다.
-- `meta`는 null 가능. 상한 초과 시에만 `Meta("too_many_results", "검색 반경을 줄이거나 필터를 추가해 주세요.")` 형식으로 채웁니다.
+- `meta`는 null 가능. 상한 초과 시 `Meta("too_many_results", "검색 반경을 줄이거나 필터를 추가해 주세요.")`로 채우고,
+  20건 미만 결과일 때는 `Meta("low_results", "검색 결과가 적습니다. 반경을 늘리거나 필터를 완화해 보세요.")`를 내려줍니다.
 
 ### Step 2. 서비스 로직 조정
 - 요청 `size`는 그대로 캐시 키에 반영하지만, 실제 페이지 크기(`pageSize`)는 `min(size, 500)`으로 제한합니다.
@@ -43,7 +44,8 @@
 - `buildNextCursor`는 기존 로직을 유지하되, 빈 페이지(요청 size 0) 시 null을 반환하게 확인합니다.
 
 ### Step 4. 검증 & 예외 상황
-- 상한 초과 시에도 HTTP 200을 반환해야 하며, 클라이언트는 meta.reason 값으로 안내 메시지를 표시합니다.
+- 상한 초과 시에도 HTTP 200을 반환해야 하며, 클라이언트는 `meta.reason` 값으로 안내 메시지를 표시합니다.
+- 20건 미만일 때 `low_results` 안내가 내려가도록 하여 UX 개선(필터 완화 권장).
 - 캐시된 응답이 존재한다면 동일한 Meta 정보가 함께 재사용됩니다.
 
 ---
@@ -51,9 +53,10 @@
 ## 4. 테스트 체크리스트
 
 1. size=100 요청, DB가 501건을 반환 → 응답 `places` 크기=100, `meta.reason="too_many_results"`, `meta.suggest`는 빈 문자열이 아니어야 함.
-2. size=500 요청, DB가 500건 반환 → `meta=null`, `nextCursor`는 null.
-3. size=500 요청, DB가 501건 반환 → `places` 500건, `meta.reason` 설정.
-4. 캐시 적중 시 메타 정보가 유지되는지 확인.
+2. size=15 요청, DB가 15건 반환 → `meta.reason="low_results"`와 안내 문구 포함.
+3. size=500 요청, DB가 500건 반환 → `meta=null`, `nextCursor`는 null.
+4. size=500 요청, DB가 501건 반환 → `places` 500건, `meta.reason` 설정.
+5. 캐시 적중 시 메타 정보가 유지되는지 확인.
 
 ---
 

@@ -29,8 +29,8 @@
 2. HTTP 헤더 `Idempotency-Key`를 필수로 요구.
    - 비어있거나 공백만 있으면 400(Bad Request) + 에러 메시지 반환.
    - 헤더명 대소문자 구분 없음(`request.getHeader("Idempotency-Key")`).
-3. 요청 본문은 후속 단계에서 정의되므로, 우선 단순 DTO(예: 추천 범위/필터) 또는 `@RequestBody Map<String,Object>`로 placeholder 처리 가능.
-4. 응답은 `ApiResponse.ok()` 또는 placeholder 데이터를 반환.
+3. 요청 본문에는 최소한 위치/반경/카테고리 정보가 포함된다(3.2 단계에서 실제 후보 조회에 사용).
+4. 응답은 `RouletteService`가 선정한 후보(`RouletteResponse`)를 `ApiResponse`로 감싸 반환한다.
 5. 로깅/추적을 위해 `Idempotency-Key` 값을 MDC로 전달하는 것도 고려(옵션).
 
 ---
@@ -48,13 +48,14 @@
 - 누락 시 `throw new DomainException(ErrorCode.INVALID_REQUEST_PARAM, "Idempotency-Key 헤더가 필요합니다.")` 등으로 처리.
 - 필요하다면 `ErrorCode`에 `IDEMPOTENCY_KEY_REQUIRED` 항목을 신설하고 공통 메시지를 추가.
 
-### Step 3. 요청 DTO 준비 (선택 사항)
-- 이후 3.2에서 후보군 생성 로직이 필요하므로, `RouletteRequest` DTO를 미리 정의.
-- 필드: `lat`, `lng`, `radius`, `filters`, 사용자 세션 ID 등(추후 확정). 현재는 최소 필수 필드만 정의하고 TODO로 남긴다.
+### Step 3. 요청 DTO 준비
+- 이후 3.2에서 후보군 생성 로직이 필요하므로, `RouletteRequest` DTO를 정의한다.
+- 필드 예시: `lat`, `lng`, `radius`, `categories`, `limit`, `seed` 등.
+- Lombok을 활용해 보일러플레이트를 줄이고, `@Validated`로 입력 검증을 실시한다.
 
 ### Step 4. 서비스 호출 스켈레톤
-- `RouletteService` 인터페이스/클래스를 생성해 향후 로직을 구현할 준비를 한다.
-- 현재 단계에서는 `rouletteService.recommend(requestDto)` 호출 후 임시 응답 DTO를 구성하거나 `ApiResponse.ok()` 로 placeholder 응답.
+- `RouletteService` 클래스에서 실제 후보 조회/무작위 선택 로직을 구현할 예정이므로, `recommend(request, idempotencyKey)` 형태로 호출한다.
+- 3.1 단계에서는 일단 `RouletteResponse.placeholder()` 등의 임시 응답을 반환하고, 3.2~3.4 단계에서 본문을 채운다.
 
 ### Step 5. 테스트 작성
 - `src/test/java/com/matjom/matjom/recommendation/RouletteControllerTest.java`(혹은 스프링 `@WebMvcTest`) 추가.
@@ -71,7 +72,13 @@
 - [ ] `Idempotency-Key` 헤더가 없거나 비어 있으면 400 응답.
 - [ ] 정상 요청 시 `ApiResponse` 구조로 응답.
 - [ ] 단위/슬라이스 테스트가 헤더 검증을 커버한다.
-- [ ] TODO 주석 / 문서에 후속 작업(멱등 저장소 연동, 후보군 로직 등)을 명시했다.
+- [ ] TODO 주석 / 문서에 후속 작업(후보 조회/랜덤, 멱등 저장소 연동 등)을 명시했다.
+
+---
+
+## 다음 단계
+
+- 3.2~3.5 단계에서 백엔드 무작위 추천/멱등 재생 로직을 구현할 때는 `docs/RUA/explanations/roulette-backend-random.md`를 참고한다.
 
 ---
 

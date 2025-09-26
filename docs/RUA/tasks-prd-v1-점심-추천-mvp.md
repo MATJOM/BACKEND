@@ -65,7 +65,10 @@
 
 - [ ] 3.0 룰렛 API(v1)
   - [x] 3.1 `RouletteController.postRoulette()` + `Idempotency-Key` 헤더 필수 검증.
-  - [ ] 3.x (프론트 전담) 검색 결과 기반 무작위 선택/멱등 재생 — `docs/RUA/explanations/frontend-roulette-random.md` 참고.
+  - [ ] 3.2 `RouletteService`에서 조건별 후보 조회 + 서버 측 균등 무작위 선택.
+  - [ ] 3.3 멱등 재생: 동일 파라미터+멱등키 60s 재호출 시 동일 응답 반환(백엔드 저장소).
+  - [ ] 3.4 (옵션) `seed` 파라미터 지원으로 재현 가능한 추천 제어.
+  - [ ] 3.5 테스트/문서화: 무작위 분포 ±5%, 멱등 재생, OpenAPI 스펙 업데이트.
 
 - [ ] 4.0 세션 라이프사이클
   - [ ] 4.1 `VisitSessionController.start()` 구현: 멱등키 필수, 중복 ACTIVE 방지(트랜잭션/UNIQUE 제약).

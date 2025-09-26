@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS places (
     addr_eupmyeondong VARCHAR(80) NOT NULL,
     addr_street VARCHAR(100) NOT NULL,
     addr_detail VARCHAR(100) NOT NULL,
-    location geometry(Point,4326),
+    location geography(Point,4326),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,

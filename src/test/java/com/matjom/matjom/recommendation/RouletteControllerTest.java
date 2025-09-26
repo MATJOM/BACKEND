@@ -13,6 +13,7 @@ import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.recommendation.api.RouletteController;
 import com.matjom.matjom.recommendation.dto.RouletteRequest;
 import com.matjom.matjom.recommendation.dto.RouletteResponse;
+import java.util.List;
 import com.matjom.matjom.recommendation.service.RouletteService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,7 +77,7 @@ class RouletteControllerTest {
     void returnsOkWhenIdempotencyKeyPresent() throws Exception {
         RouletteRequest request = buildRequest();
         when(rouletteService.recommend(any(RouletteRequest.class), eq("abc-123")))
-                .thenReturn(new RouletteResponse(1L, "Place"));
+                .thenReturn(new RouletteResponse(1L, "Place", 42.0, List.of("korean"), new RouletteResponse.Meta(10, false)));
 
         mockMvc.perform(post("/api/v1/recommendations/roulette")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -92,7 +93,7 @@ class RouletteControllerTest {
     void trimsIdempotencyKeyBeforePassingToService() throws Exception {
         RouletteRequest request = buildRequest();
         when(rouletteService.recommend(any(RouletteRequest.class), eq("trimmed")))
-                .thenReturn(new RouletteResponse(2L, "Trimmed"));
+                .thenReturn(new RouletteResponse(2L, "Trimmed", 10.0, List.of(), new RouletteResponse.Meta(5, false)));
 
         mockMvc.perform(post("/api/v1/recommendations/roulette")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -109,7 +110,8 @@ class RouletteControllerTest {
         request.setLat(37.5665);
         request.setLng(126.9780);
         request.setRadius(300.0);
-        request.setFilters(null);
+        request.setCategories(List.of("korean"));
+        request.setLimit(100);
         return request;
     }
 }
