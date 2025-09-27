@@ -1,7 +1,7 @@
 package com.matjom.matjom.moderation.report.controller;
 
 import com.matjom.matjom.common.response.ApiResponse;
-import com.matjom.matjom.moderation.ReviewModerationService;
+import com.matjom.matjom.moderation.report.service.ReviewModerationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

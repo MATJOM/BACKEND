@@ -20,9 +20,9 @@
   - [x] `DailyLikeRepository`의 JPQL/네이티브 쿼리를 실제 사용 시나리오에 맞게 정리
 
 - [ ] 신고/모더레이션 축소
-  - [ ] 리뷰 신고는 건수 집계 테이블만 유지하고, 자동 경고/숨김/삭제 로직 제거
-  - [ ] `ReviewModerationService`와 관련 엔티티/DTO에서 신고 건수 관련 필드만 남기는 방향으로 수정 계획 수립
-  - [ ] 신고 API/응답에서 팀장 지침에 맞지 않는 필드 제거
+  - [x] 리뷰 신고는 건수 집계만 남기고 자동 제재 로직 제거
+  - [x] `ReviewModerationService`와 관련 DTO를 신고 건수 중심으로 단순화
+  - [x] 신고 API 응답에서 warningCount 제거, reportCount 제공
 
 - [ ] 테스트 강화
   - [x] 통합 테스트: Mock이 아닌 실제 JPA 레포지토리를 사용해 리뷰 작성/수정/삭제 및 좋아요 등록/취소/재등록이 정상 동작하는지 검증
@@ -60,9 +60,9 @@
 - [x] `src/main/java/com/matjom/matjom/feed/entity/likes/DailyLike.java` — 좋아요 엔티티 최소화
 - [x] `src/main/java/com/matjom/matjom/feed/service/DailyLikeService.java` — 좋아요 등록/취소/재등록 로직 단순화
 - [x] `src/main/java/com/matjom/matjom/feed/repository/DailyLikeRepository.java` — 필요 쿼리만 유지
-- [ ] `src/main/java/com/matjom/matjom/moderation/ReviewModerationService.java` — 신고 건수 집계만 남기도록 리팩터링
+- [x] `src/main/java/com/matjom/matjom/moderation/ReviewModerationService.java` — 신고 건수 집계만 남기도록 리팩터링
 - [x] `src/main/resources/schema-postgres.sql` — 리뷰/신고 테이블 스키마에서 불필요 필드/인덱스 제거
-- [ ] `src/test/java/com/matjom/matjom/moderation/ReviewModerationIntegrationTest.java` 외 테스트 — 리뷰/좋아요 시나리오 검증 업데이트
+- [x] `src/test/java/com/matjom/matjom/moderation/ReviewModerationServiceTest.java` — 신고 건수 동작 검증
 
 ## Notes / Next Steps
 

@@ -67,3 +67,75 @@
 
 ---
 위 변경으로 리뷰/좋아요 도메인이 JWT 사용자 흐름과 맞물리도록 정리되었고, 각 단위/통합 테스트가 핵심 기능(리뷰 작성, 좋아요 토글)이 바르게 동작함을 구체적으로 검증합니다.
+
+## 7. 추가 질의 & 결정 사항
+- **ReviewReport의 reporter_id 연결성**: `review_reports` 테이블은 `reporter_id`를 `users(id)`에 FK로 묶어 신고자가 사용자 테이블과 정확히 연결됩니다. 엔티티는 `UUID reporterId`만 들고 있지만, 서비스에서 `reporterId`에 현재 사용자 `userId`를 저장하므로 DB와 코드 모두 동일 사용자 ID를 참조합니다.
+- **UUID 사용 배경**: 리뷰/좋아요는 `visit` 기반으로 작성/좋아요 기회가 주어집니다. 분산 환경에서 ID 충돌 없이 생성할 수 있고(동시성), 외부 시스템 연계 시 추적이 용이하며, 순차 ID 노출 위험을 줄이기 위해 `UUID`를 채택했습니다. 방문 수만큼 리뷰/좋아요 기회를 부여하려는 비즈니스 규칙과도 정합성이 높습니다.
+
+## 8. 리뷰 신고(Moderation) 정리
+- **기능 개요**: 신고는 리뷰에 대한 금칙어 검증·신고 이력 저장에 집중하며, 자동 제재(숨김/삭제) 로직은 제거. 리뷰 상태는 신고만으로 바뀌지 않고 신고 건수(`reportCount`)만 누적.
+- **흐름**
+  1. `ReviewModerationService.validateText`가 작성/수정 시 profanity 필터(`ProfanityFilter`)로 금칙어를 차단합니다.
+  2. 신고 요청(`reportReview`)이 들어오면 `review_reports` 테이블에 신고 이력을 저장하고, `ReviewReportRepository.countByReviewId(reviewId)`로 누적 신고 건수를 계산합니다.
+  3. 응답 DTO(`ReportReviewResponseDTO`)는 신고자 이름(`reporterName`)과 누적 신고 건수(`reportCount`)만 내려주어 리뷰 상태 변화 없이 이력만 보여 줍니다.
+- **엔티티·스키마 연계**
+  - `ReviewReport` 엔티티는 `review_id`와 `reporter_id`를 각각 리뷰/사용자와 연결합니다. 스키마에서도 `reporter_id` → `users(id)` FK를 지정해 신고자가 항상 유효한 사용자로 연결되도록 보장합니다.
+  - 신고 건수 집계는 `ReviewReportRepository.countByReviewId` 단일 메서드로 처리하며 별도 경고 필드가 없습니다.
+- **테스트**
+  - `ReviewModerationServiceTest`에서 금칙어 감지, 중복 신고 차단, 신고 건수 누적(상태 유지)을 검증합니다.
+  - 금칙어/신고 기능은 서비스 단위 테스트로 다루며, 이전 통합 테스트는 제거하여 H2 DDL 충돌도 제거되었습니다.
+
+## 9. 통계 구현 준비 메모 (Role: 데이터 아키텍트)
+- **Tree-of-Thought**
+  - 실시간 지표 전문가: `visits`의 상태·타임스탬프만으로 출발/도착/현재 체류 카운트를 산출할 수 있음을 확인했습니다.
+  - 집계·배치 전문가: `place_daily_stats`가 일자·시간대·피크 필드를 이미 갖추고 있어 UC-Stat-02와 UC-Batch-01 요구사항을 수용할 수 있다고 평가했습니다.
+  - DBA: `reviews`, `daily_likes`, `review_reports`가 방문/사용자/장소 FK와 타임스탬프, 상태 제약을 모두 갖춰 통계·신고 집계에 무리가 없음을 검증했습니다.
+- **사용 가능한 핵심 데이터**
+  - `visits`: 상태(`ACTIVE/ARRIVED`), `started_at`, `arrived_at`, 위치 정보 등 실시간 지표 산출에 필요한 필드가 준비되어 있음 (`src/main/resources/schema-postgres.sql:52`).
+  - `places`: `place_id`, `name` 등 장소 메타 정보를 제공하여 응답 가독성을 높이는 데 활용 가능 (`src/main/resources/schema-postgres.sql:19`).
+  - `reviews`: 방문당 1회 제한, 상태(`ACTIVE/DELETED`), 작성 시각을 보유해 리뷰 건수 및 최신 활동 확인에 적합 (`src/main/resources/schema-postgres.sql:118`).
+  - `daily_likes`: 방문별 1회 좋아요, `date_kst` 필드를 통해 일별/당일 분석이 가능 (`src/main/resources/schema-postgres.sql:146`).
+  - `place_daily_stats`: 일자별 출발·도착·리뷰·좋아요 수와 시간대 JSON, 피크 시간 컬럼으로 예측과 집계를 위한 기반 마련 (`src/main/resources/schema-postgres.sql:173`).
+  - `review_reports`: 신고자/리뷰 연결, 신고 사유, 생성 시각을 저장해 신고 건수 요약이 용이 (`src/main/resources/schema-postgres.sql:198`).
+- **결론**
+  - UC-Stat-01/02, UC-Batch-01에 필요한 실시간·일일 집계·신고 데이터는 모두 기존 스키마에 구비되어 있습니다.
+  - 현재 스키마만으로도 조회·집계·캐시 로직을 구현해 목표 Use Case를 지원할 수 있으며 추가 스키마 변경은 필요하지 않습니다.
+
+## 10. 통계/캐시 관련 Q&A 메모 (Role: 데이터 아키텍트)
+- **체류 인원 정의**
+  - Tree-of-Thought: 실시간 지표 전문가는 “체류 인원 = 현재 장소에 머무르는 방문자”로 해석했고, 데이터 아키텍트는 `visits` 상태/타임스탬프 조건만으로 계산 가능하다고 강조.
+  - 계산 방식: `state = 'ARRIVED'`이면서 `deleted_at`이 없고, 만료(`expired_at`)·취소(`cancelled_at`) 시간이 아직 지나지 않은 방문을 1명으로 합산.
+- **실시간 처리 부담 여부**
+  - 전문가 의견: 캐시 없이 DB에서 조건 한 번 조회 후 TTL(60초) 캐시로 충분히 대응 가능. 실시간 스트리밍이나 지속 배경 작업이 필요하지 않으며, 통계 요청 시점에 즉시 계산하는 스냅샷 접근이 현재 요구와 맞음.
+- **Redis 캐시 사용 설명**
+  - Redis는 메모리 키-값 저장소로 빠른 조회를 제공. `Cache-aside` 패턴으로 캐시 조회 → 미스 시 DB 조회 후 `SETEX` 저장 → TTL 만료 시 자동 삭제.
+  - 키 패턴: `place:stats:{placeId}`, `place:visit-info:{placeId}`. 값은 DTO를 JSON으로 직렬화해 저장, `timestamp`와 `source`(캐시 여부) 필드 포함.
+  - 배치에서는 집계 후 관련 키를 `DEL`로 무효화하여 다음 요청이 신선한 데이터를 계산하도록 함. Redis 장애 시에는 DB 계산만으로 응답하도록 방어 코드 작성.
+- **Spring + Docker 기반 Redis 사용 절차**
+  - 인프라 전문가: Docker 설치 확인 → `docker pull redis:7-alpine` → `docker run -d --name redis-local -p 6379:6379 -v redis-data:/data redis:7-alpine`으로 컨테이너 실행.
+  - DevOps 전문가: 포트 매핑, 볼륨(`-v`)로 데이터 보존, `docker ps`로 상태 확인, 재시작 시 `docker stop/start redis-local` 사용.
+  - 애플리케이션 전문가: `spring-boot-starter-data-redis` 의존성 추가 후 `application.yml`에 `spring.redis.host=localhost`, `spring.redis.port=6379` 설정. `RedisTemplate`을 이용해 캐시 로직을 구현.
+  - 추가 복잡한 설계는 필요 없고, 팀 전원이 Docker Compose나 명령어를 공유해 동일한 Redis 환경을 쉽게 재현 가능.
+
+## 11. 다음 단계 가이드 (9월 26일 최종)
+- **Redis 도입 준비 체크**
+  - `build.gradle` 의존성 추가:
+    ```gradle
+    implementation "org.springframework.boot:spring-boot-starter-data-redis"
+    ```
+  - `application.yml` 샘플:
+    ```yaml
+    spring:
+      redis:
+        host: localhost
+        port: 6379
+    statistics:
+      cache:
+        ttl-seconds: 60  # 필요 시 30으로 단축 가능
+    ```
+  - 로컬 Redis는 Docker 컨테이너(`redis:7-alpine`)를 기본으로 사용하고, 배치 완료 시 `DEL place:stats:{placeId}` 방식으로 캐시 무효화.
+- **통계 작업 TODO(Statistics Task Plan 기준)**
+  - UC-Stat-01: 응답 필드·오류 플로우 정의, 서비스/컨트롤러 구현, DTO 설계, 테스트/문서화 항목이 미완료 상태.
+  - UC-Stat-02: 대기 인원 계산 방식, 패턴 범위, 외부 연동 범위 확정 등 요구 정밀화와 서비스/테스트/문서화 전반이 TODO.
+  - UC-Batch-01: 실제 집계 로직 구현(`visits/reviews/daily_likes` 연동), 배치 API, 시간대 통계/재학습, 테스트 및 운영 문서 작성이 남아 있음.
+  - 공통: `./gradlew test` 전체 통과 확인과 README/summary 갱신도 최종 마무리 단계에서 수행 필요.

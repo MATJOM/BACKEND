@@ -33,7 +33,7 @@ public class ReviewService {
     /**
      * 리뷰 작성 자격 확인
      * UC-Feed-01: 기회 확인 로직 통합
-     */
+     */ //여기는 왜DTO로 돌려주는지 이유 알아오기
     public EligibilityCheckResponseDTO checkReviewEligibility(UUID userId, Long placeId, Long visitId) {
         log.info("리뷰 작성 자격 확인: userId={}, placeId={}, visitId={}", userId, placeId, visitId);
 
