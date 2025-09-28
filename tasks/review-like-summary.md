@@ -72,17 +72,17 @@
 - **UUID 사용 배경**: 리뷰/좋아요는 `visit` 기반으로 작성/좋아요 기회가 주어집니다. 분산 환경에서 ID 충돌 없이 생성할 수 있고(동시성), 외부 시스템 연계 시 추적이 용이하며, 순차 ID 노출 위험을 줄이기 위해 `UUID`를 채택했습니다. 방문 수만큼 리뷰/좋아요 기회를 부여하려는 비즈니스 규칙과도 정합성이 높습니다.
 
 ## 8. 리뷰 신고(Moderation) 정리
-- **기능 개요**: 신고는 리뷰에 대한 금칙어 검증·신고 이력 저장에 집중하며, 자동 제재(숨김/삭제) 로직은 제거. 리뷰 상태는 신고만으로 바뀌지 않고 신고 건수(`reportCount`)만 누적.
+- **기능 개요**: 리뷰 신고는 최소 정보(사유/설명)만 저장하고 자동 제재는 하지 않습니다. 리뷰 본문 검증은 `ReviewService`에서 직접 `ProfanityFilter`로 처리하고, 신고는 신고 이력과 건수 집계에 집중합니다.
 - **흐름**
-  1. `ReviewModerationService.validateText`가 작성/수정 시 profanity 필터(`ProfanityFilter`)로 금칙어를 차단합니다.
-  2. 신고 요청(`reportReview`)이 들어오면 `review_reports` 테이블에 신고 이력을 저장하고, `ReviewReportRepository.countByReviewId(reviewId)`로 누적 신고 건수를 계산합니다.
-  3. 응답 DTO(`ReportReviewResponseDTO`)는 신고자 이름(`reporterName`)과 누적 신고 건수(`reportCount`)만 내려주어 리뷰 상태 변화 없이 이력만 보여 줍니다.
+  1. 신고자가 동일 리뷰를 다시 신고하려 하면 `ReviewReportRepository.existsByReviewIdAndReporterId`가 중복을 차단합니다.
+  2. 신고 대상 리뷰가 삭제되지 않은 상태로 존재하는지 `ReviewRepository.existsByIdAndDeletedAtIsNull`로 확인한 뒤 `review_reports`에 이력을 한 건 추가합니다.
+  3. 응답 DTO(`ReportReviewResponseDTO`)는 신고 ID, 사유/설명, 신고 시각, 누적 건수(`reportCount`)만 내려 사용자에게 “신고 접수 완료” 정도의 정보만 제공합니다.
 - **엔티티·스키마 연계**
   - `ReviewReport` 엔티티는 `review_id`와 `reporter_id`를 각각 리뷰/사용자와 연결합니다. 스키마에서도 `reporter_id` → `users(id)` FK를 지정해 신고자가 항상 유효한 사용자로 연결되도록 보장합니다.
   - 신고 건수 집계는 `ReviewReportRepository.countByReviewId` 단일 메서드로 처리하며 별도 경고 필드가 없습니다.
 - **테스트**
-  - `ReviewModerationServiceTest`에서 금칙어 감지, 중복 신고 차단, 신고 건수 누적(상태 유지)을 검증합니다.
-  - 금칙어/신고 기능은 서비스 단위 테스트로 다루며, 이전 통합 테스트는 제거하여 H2 DDL 충돌도 제거되었습니다.
+  - `ReviewModerationServiceTest`에서 중복 신고 차단과 신고 건수 집계를 검증합니다.
+  - 금칙어 검증은 리뷰 작성/수정 경로에서만 수행되며, 신고 기능은 단위 테스트로 최소 동작을 확인합니다.
 
 ## 9. 통계 구현 준비 메모 (Role: 데이터 아키텍트)
 - **Tree-of-Thought**

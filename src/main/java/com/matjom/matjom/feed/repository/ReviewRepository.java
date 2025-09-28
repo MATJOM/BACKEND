@@ -47,4 +47,9 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     // 필요 이유: 통계나 요약 정보에 사용된다
     // 로직: deletedAt이 NULL인 행만 COUNT 한다
     long countActiveReviewsByPlaceId(@Param("placeId") Long placeId); // 9월 26일 최종
+
+    // 목적: 리뷰가 삭제되지 않은 상태로 존재하는지 확인한다
+    // 필요 이유: 신고 등에서 전체 엔티티를 불러오지 않고 존재만 체크하기 위함이다
+    // 로직: ID와 deletedAt NULL 조건을 조합한 파생 쿼리를 사용한다
+    boolean existsByIdAndDeletedAtIsNull(UUID reviewId);
 }
