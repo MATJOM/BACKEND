@@ -34,6 +34,7 @@ public class ReviewService {
      * 리뷰 작성 자격 확인
      * UC-Feed-01: 기회 확인 로직 통합
      */ //여기는 왜DTO로 돌려주는지 이유 알아오기
+    // 9월 29일 최종: checkReviewEligibility는 리뷰 작성 가능 여부와 사유를 한 번에 전달하기 위해 DTO 형태의 판정 결과를 직접 반환합니다.
     public EligibilityCheckResponseDTO checkReviewEligibility(UUID userId, Long placeId, Long visitId) {
         log.info("리뷰 작성 자격 확인: userId={}, placeId={}, visitId={}", userId, placeId, visitId);
 
@@ -203,4 +204,3 @@ public class ReviewService {
         return value.substring(0, 8) + "****";
     }
 }
-

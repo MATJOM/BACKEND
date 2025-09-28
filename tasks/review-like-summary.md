@@ -106,7 +106,7 @@
   - Tree-of-Thought: 실시간 지표 전문가는 “체류 인원 = 현재 장소에 머무르는 방문자”로 해석했고, 데이터 아키텍트는 `visits` 상태/타임스탬프 조건만으로 계산 가능하다고 강조.
   - 계산 방식: `state = 'ARRIVED'`이면서 `deleted_at`이 없고, 만료(`expired_at`)·취소(`cancelled_at`) 시간이 아직 지나지 않은 방문을 1명으로 합산.
 - **실시간 처리 부담 여부**
-  - 전문가 의견: 캐시 없이 DB에서 조건 한 번 조회 후 TTL(60초) 캐시로 충분히 대응 가능. 실시간 스트리밍이나 지속 배경 작업이 필요하지 않으며, 통계 요청 시점에 즉시 계산하는 스냅샷 접근이 현재 요구와 맞음.
+  - 전문가 의견: 캐시 없이 DB에서 조건 한 번 조회 후 TTL(5분) 캐시로 충분히 대응 가능. 실시간 스트리밍이나 지속 배경 작업이 필요하지 않으며, 통계 요청 시점에 즉시 계산하는 스냅샷 접근이 현재 요구와 맞음.
 - **Redis 캐시 사용 설명**
   - Redis는 메모리 키-값 저장소로 빠른 조회를 제공. `Cache-aside` 패턴으로 캐시 조회 → 미스 시 DB 조회 후 `SETEX` 저장 → TTL 만료 시 자동 삭제.
   - 키 패턴: `place:stats:{placeId}`, `place:visit-info:{placeId}`. 값은 DTO를 JSON으로 직렬화해 저장, `timestamp`와 `source`(캐시 여부) 필드 포함.
@@ -118,8 +118,9 @@
   - 추가 복잡한 설계는 필요 없고, 팀 전원이 Docker Compose나 명령어를 공유해 동일한 Redis 환경을 쉽게 재현 가능.
 
 ## 11. 다음 단계 가이드 (9월 26일 최종)
-- **Redis 도입 준비 체크**
-  - `build.gradle` 의존성 추가:
+## 11. 다음 단계 가이드 (9월 29일 최종)
+- **Redis 도입 준비 체크** (변경 없음)
+  - `build.gradle` 의존성:
     ```gradle
     implementation "org.springframework.boot:spring-boot-starter-data-redis"
     ```
@@ -131,11 +132,39 @@
         port: 6379
     statistics:
       cache:
-        ttl-seconds: 60  # 필요 시 30으로 단축 가능
+        ttl-seconds: 300  # 필요 시 운영 상황에 맞게 조정 가능
     ```
-  - 로컬 Redis는 Docker 컨테이너(`redis:7-alpine`)를 기본으로 사용하고, 배치 완료 시 `DEL place:stats:{placeId}` 방식으로 캐시 무효화.
-- **통계 작업 TODO(Statistics Task Plan 기준)**
-  - UC-Stat-01: 응답 필드·오류 플로우 정의, 서비스/컨트롤러 구현, DTO 설계, 테스트/문서화 항목이 미완료 상태.
-  - UC-Stat-02: 대기 인원 계산 방식, 패턴 범위, 외부 연동 범위 확정 등 요구 정밀화와 서비스/테스트/문서화 전반이 TODO.
-  - UC-Batch-01: 실제 집계 로직 구현(`visits/reviews/daily_likes` 연동), 배치 API, 시간대 통계/재학습, 테스트 및 운영 문서 작성이 남아 있음.
-  - 공통: `./gradlew test` 전체 통과 확인과 README/summary 갱신도 최종 마무리 단계에서 수행 필요.
+  - 로컬 Redis는 Docker 컨테이너(`redis:7-alpine`)를 사용하고, 배치 완료 시 `DEL place:stats:{placeId}`/`DEL place:visit-info:{placeId}`로 캐시 무효화.
+- **통계 작업 현황 요약**
+  - UC-Stat-01: `placeName` 기반 응답으로 정리 완료. 오류 응답 규격만 남은 TODO로 유지.
+  - UC-Stat-02: 실시간 체류 인원 응답은 신뢰성 문제로 제거. 향후 평균 기반 지표를 도입할 수 있도록 배치 데이터 구조만 유지.
+  - UC-Batch-01: 집계/스케줄러/예측 훅/문서화까지 완료. 운영 모니터링 지표 정의는 보완 예정.
+  - 공통: `./gradlew test` 전체 통과(9월 29일)로 회귀 검증 완료. README 갱신은 추후 팀장 확인 후 진행.
+
+## 12. UC-Stat-01 및 UC-Stat-02 진행 기록 (9월 30일 최종)
+- **UC-Stat-01 정리**
+  - DTO & 스냅샷: `PlaceStatsResponseDTO`가 `placeName`, 누적 방문/좋아요, 특정 시간대(11~12시·12~13시) 최근 14일 평균 도착 수만 응답에 노출하고, `generatedAt`/`cacheTtlSeconds`/`dataSource`는 `@JsonIgnore`로 숨겨 내부 모니터링용으로 유지.
+  - 서비스 계층: `PlaceStatisticsService`가 `PlaceReadRepository.findNameById`로 존재 여부와 이름을 동시에 확인해 DTO를 빌드.
+  - 캐시 연동: `PlaceStatsCacheService`가 `put(Long placeId, PlaceStatsResponseDTO)` 형태로 변경돼 캐시 키는 placeId, 응답은 placeName을 유지.
+  - 시간대 지표: `PlaceStatisticsRepository`가 최근 14일(당일 포함) 11~12시·12~13시 도착 인원을 평균 내어 반올림한 값을 반환하도록 갱신.
+  - 테스트: 서비스/쿼리/컨트롤러 단위 테스트를 모두 갱신해 placeName 응답과 캐시 키 변화, fallback 흐름을 검증.
+  - 문서: `docs/uc-stat-01-api.md`, `docs/statistics-change-log.md`, `docs/statistics-presentation.md`에 placeName 응답 및 최신 흐름 반영.
+- **UC-Stat-02 상태**
+  - 실시간 체류 인원 API(`/visit-info`)는 제거되었습니다. 향후 필요하면 배치 기반 평균 지표로 재설계합니다.
+  - 관련 서비스/캐시/컨트롤러/테스트/문서는 정리되었고, 문서에서는 폐기 상태로 명시했습니다.
+- **UC-Batch-01 유지보수**
+  - 기존 집계/스케줄/예측 훅 구조는 그대로 유지하되, 캐시 무효화 대상에 새로 단순화된 visit-info 응답이 포함됨을 확인.
+- **남은 TODO**
+  - UC-Stat-01: 오류 응답 규격 정리.
+  - UC-Stat-02: 추후 패턴/예측 재도입 시 재플래닝.
+  - UC-Batch-01: 모니터링 지표 정의 보완.
+
+## 13. Place Detail Facade 도입 (9월 30일 신규)
+- **목적**: 장소 상세 화면에서 통계와 최신 리뷰를 묶어 전달하는 전용 API를 제공해 프론트엔드 호출 수를 최소화.
+- **핵심 구성**
+  - `PlaceDetailResponseDTO`: 통계(`PlaceStatsResponseDTO`), 리뷰 리스트(`ReviewResponseDTO`), 전체 리뷰 수를 포함하는 응답 DTO.
+  - `PlaceDetailFacadeService`: 통계 캐시(`PlaceStatisticsQueryService`)와 리뷰 서비스(`ReviewService`)를 주입받아 조합하며, 기본으로 최근 5개 리뷰만 반환하고 `reviewLimit` 파라미터로 조절 가능.
+  - `PlaceDetailController`: `GET /api/places/{placeId}/detail` 엔드포인트. 관리자 API가 아닌 일반 사용자 진입점을 위한 조합 API로 설계.
+- **테스트**
+  - `PlaceDetailFacadeServiceTest`: 기본 제한(5개)과 전체 리뷰 수 계산을 검증.
+  - `PlaceDetailControllerTest`: MockMvc 기반으로 응답 구조와 쿼리 파라미터 전달을 확인.
