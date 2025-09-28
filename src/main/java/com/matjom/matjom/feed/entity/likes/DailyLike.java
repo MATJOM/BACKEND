@@ -50,15 +50,24 @@ public class DailyLike extends BaseEntity {
     @Column(name = "cancelled_at")
     private OffsetDateTime cancelledAt;
 
+    // 목적: 좋아요가 현재 활성 상태인지 판별한다
+    // 필요 이유: 취소된 좋아요를 중복 처리하지 않기 위해서다
+    // 로직: 상태가 ACTIVE이며 삭제되지 않은 경우에만 true를 반환한다
     public boolean isActive() { // 9월 26일 최종: 단순 활성 상태 판단
         return status == LikeStatus.ACTIVE && !isDeleted();
     }
 
+    // 목적: 좋아요를 취소 상태로 전환한다
+    // 필요 이유: 사용자가 좋아요를 철회했을 때 집계에서 제외하려면 상태 전환이 필요하다
+    // 로직: 상태를 CANCELLED로 바꾸고 취소 시각을 기록한다
     public void cancel(OffsetDateTime cancelledAt) { // 9월 26일 최종: 취소 처리
         this.status = LikeStatus.CANCELLED;
         this.cancelledAt = cancelledAt;
     }
 
+    // 목적: 취소한 좋아요를 다시 활성화한다
+    // 필요 이유: 사용자가 마음을 바꿨을 때 같은 방문으로 재사용할 수 있어야 한다
+    // 로직: 상태를 ACTIVE로 돌리고 취소 시각을 비운다
     public void reactivate() { // 9월 26일 최종: 재활성화 처리
         this.status = LikeStatus.ACTIVE;
         this.cancelledAt = null;

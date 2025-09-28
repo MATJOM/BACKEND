@@ -30,12 +30,12 @@
   - [ ] 테스트 데이터 준비 시 `CustomUserDetails` 기반 userId/visitId를 셋업하는 유틸 작성 여부 검토
 
 - [ ] 통계 연계 준비
-  - [ ] `ReviewCreatedEvent` 등 이벤트 흐름을 UC-Stat-01/02 요구사항(60초 캐시, visits 직접 조회, Redis 활용)과 연결할 TODO 정리
+  - [ ] (보류) 현재 이벤트 발행 로직 제거됨 — 통계 연계가 필요해지면 새로운 이벤트 설계부터 재검토
   - [ ] UC-Batch-01 자정 배치에서 필요한 집계 포인트(출발/도착/리뷰/좋아요, 시간대 통계, 예측 모델 재학습) 문서화
   - [ ] 신고 수 집계와 향후 통계 지표(예: 신고율) 간 연계 가능성을 별도 메모
 
 ## Relevant Files
-- [x] `src/main/java/com/matjom/matjom/feed/service/ReviewResponseAssembler.java` — 리뷰 응답에 사용자/장소 이름 포함
+- [x] `src/main/java/com/matjom/matjom/feed/dto/assembler/ReviewResponseAssembler.java` — 리뷰 응답에 사용자/장소 이름 포함
 - [x] `src/main/java/com/matjom/matjom/feed/repository/PlaceReadRepository.java` — 리뷰 응답에 사용자/장소 이름 포함
 - [x] `src/main/java/com/matjom/matjom/feed/repository/UserReadRepository.java` — 리뷰 응답에 사용자/장소 이름 포함
 - [x] `src/main/java/com/matjom/matjom/common/config/JpaConfig.java` — 테스트 및 Auditing 설정
@@ -49,10 +49,9 @@
 - [x] `src/main/java/com/matjom/matjom/feed/entity/likes/LikeStatus.java` — 좋아요 핵심 구현
 - [x] `src/main/java/com/matjom/matjom/feed/repository/VisitReadRepository.java` — 방문 자격 검증 재사용 로직
 - [x] `src/main/java/com/matjom/matjom/feed/service/VisitEligibilityChecker.java` — 방문 자격 검증 재사용 로직
-- [x] `src/main/java/com/matjom/matjom/feed/dto/response/EligibilityCheckResponseDTO.java` — 방문 자격 검증 재사용 로직
 
 - [x] `src/main/java/com/matjom/matjom/feed/dto/response/ReviewResponseDTO.java` — 리뷰 응답 DTO 최소화
-- [x] `src/main/java/com/matjom/matjom/feed/entity/review/ReviewStatus.java` — 리뷰 상태 ENUM 정리
+- [x] 리뷰 상태 ENUM 제거 → BaseEntity `deleted_at`만 사용
 - [x] `src/main/java/com/matjom/matjom/feed/entity/review/Review.java` — 리뷰 엔티티 정리 및 상태 단순화
 - [x] `src/main/java/com/matjom/matjom/feed/service/ReviewService.java` — 방문 자격 검증과 리뷰 CRUD 단순화
 - [x] `src/main/java/com/matjom/matjom/feed/repository/ReviewRepository.java` — 필요 메서드만 남기기

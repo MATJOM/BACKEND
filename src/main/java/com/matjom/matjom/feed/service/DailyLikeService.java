@@ -4,14 +4,13 @@ import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.feed.dto.request.DailyLikeCreateRequestDTO;
 import com.matjom.matjom.feed.dto.response.DailyLikeResponseDTO;
-import com.matjom.matjom.feed.dto.response.EligibilityCheckResponseDTO;
+import com.matjom.matjom.feed.dto.assembler.DailyLikeResponseAssembler;
 import com.matjom.matjom.feed.entity.likes.DailyLike;
 import com.matjom.matjom.feed.entity.likes.LikeStatus;
 import com.matjom.matjom.feed.repository.DailyLikeRepository;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,45 +29,19 @@ public class DailyLikeService {
     private final VisitEligibilityChecker visitEligibilityChecker;
     private final DailyLikeResponseAssembler dailyLikeResponseAssembler;
 
-    public EligibilityCheckResponseDTO checkLikeEligibility(UUID userId, Long placeId, Long visitId) {
-        log.info("좋아요 자격 확인: userId={}, placeId={}, visitId={}", userId, placeId, visitId);
-
-        VisitEligibilityChecker.VisitEligibilityStatus visitStatus = visitEligibilityChecker.check(userId, visitId);
-
-        if (visitStatus == VisitEligibilityChecker.VisitEligibilityStatus.NOT_FOUND) {
-            return EligibilityCheckResponseDTO.notEligible("방문 기록을 찾을 수 없습니다", visitId,
-                    false, false, false, false);
-        }
-
-        if (visitStatus == VisitEligibilityChecker.VisitEligibilityStatus.NOT_ARRIVED) {
-            return EligibilityCheckResponseDTO.notEligible("도착 확인 후 이용 가능합니다", visitId,
-                    true, false, false, true);
-        }
-
-        if (dailyLikeRepository.existsByVisitId(visitId)) {
-            return EligibilityCheckResponseDTO.notEligible("이미 좋아요를 누르셨습니다", visitId,
-                    true, true, true, true);
-        }
-
-        return EligibilityCheckResponseDTO.eligible(visitId);
-    }
-
     @Transactional
+    // 목적: 방문 완료 사용자의 일일 좋아요를 생성한다
+    // 필요 이유: 방문 경험에 대한 긍정 평가를 누적 통계로 활용하기 위함이다
+    // 로직: ARRIVED 여부와 중복 여부를 검사한 뒤 레코드를 저장하고 DTO로 응답한다
     public DailyLikeResponseDTO createLike(UUID userId, DailyLikeCreateRequestDTO request) {
         log.info("좋아요 등록 요청: userId={}, placeId={}, visitId={}", userId, request.getPlaceId(), request.getVisitId());
 
-        EligibilityCheckResponseDTO eligibility = checkLikeEligibility(userId, request.getPlaceId(), request.getVisitId());
-        if (!eligibility.getEligible()) {
-            if (!Boolean.TRUE.equals(eligibility.getVisitExists())) {
-                throw new FeedException(ErrorCode.LIKE_NOT_ALLOWED, eligibility.getReason());
-            }
-            if (!Boolean.TRUE.equals(eligibility.getVisitArrived())) {
-                throw new FeedException(ErrorCode.ARRIVAL_NOT_CONFIRMED, eligibility.getReason());
-            }
-            if (Boolean.TRUE.equals(eligibility.getAlreadyWritten())) {
-                throw new FeedException(ErrorCode.LIKE_ALREADY_EXISTS, eligibility.getReason());
-            }
-            throw new FeedException(ErrorCode.LIKE_NOT_ALLOWED, eligibility.getReason());
+        if (!visitEligibilityChecker.isArrived(userId, request.getVisitId())) {
+            throw new FeedException(ErrorCode.LIKE_NOT_ALLOWED, "도착 확인 후 이용 가능합니다");
+        }
+
+        if (dailyLikeRepository.existsByVisitId(request.getVisitId())) {
+            throw new FeedException(ErrorCode.LIKE_ALREADY_EXISTS, "이미 좋아요를 누르셨습니다");
         }
 
         DailyLike dailyLike = DailyLike.builder()
@@ -84,6 +57,9 @@ public class DailyLikeService {
     }
 
     @Transactional
+    // 목적: 사용자가 누른 좋아요를 비활성화한다
+    // 필요 이유: 의사 변경 시 기록은 남기면서 집계에서는 제외해야 한다
+    // 로직: 사용자 소유의 좋아요인지 확인 후 현재 시간을 기준으로 cancel 처리한다
     public void cancelLike(UUID userId, UUID likeId) {
         DailyLike dailyLike = dailyLikeRepository.findByIdAndUserId(likeId, userId)
                 .orElseThrow(() -> new FeedException(ErrorCode.LIKE_NOT_ALLOWED, "좋아요를 찾을 수 없습니다."));
@@ -97,6 +73,9 @@ public class DailyLikeService {
     }
 
     @Transactional
+    // 목적: 취소한 좋아요를 다시 활성화한다
+    // 필요 이유: 동일 방문에 대한 재평가가 가능하도록 UX를 보완한다
+    // 로직: 소유 여부와 현재 상태를 검증한 후 엔티티의 reactivate를 호출해 DTO로 변환한다
     public DailyLikeResponseDTO reactivateLike(UUID userId, UUID likeId) {
         DailyLike dailyLike = dailyLikeRepository.findByIdAndUserId(likeId, userId)
                 .orElseThrow(() -> new FeedException(ErrorCode.LIKE_NOT_ALLOWED, "좋아요를 찾을 수 없습니다."));
@@ -110,11 +89,4 @@ public class DailyLikeService {
         return dailyLikeResponseAssembler.toDto(dailyLike);
     }
 
-    public List<DailyLikeResponseDTO> getUserPlaceLikes(UUID userId, Long placeId) {
-        return dailyLikeRepository
-                .findByUserIdAndPlaceIdAndStatusOrderByCreatedAtDesc(userId, placeId, LikeStatus.ACTIVE)
-                .stream()
-                .map(dailyLikeResponseAssembler::toDto)
-                .toList();
-    }
 }

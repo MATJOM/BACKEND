@@ -1,7 +1,6 @@
 package com.matjom.matjom.feed.service;
 
 import com.matjom.matjom.feed.repository.VisitReadRepository;
-import com.matjom.matjom.visit.entity.Visit;
 import com.matjom.matjom.visit.entity.VisitState;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -13,20 +12,10 @@ public class VisitEligibilityChecker {
 
     private final VisitReadRepository visitReadRepository;
 
-    public VisitEligibilityStatus check(UUID userId, Long visitId) {
-        return visitReadRepository.findByIdAndUserId(visitId, userId)
-                .map(this::determineStatus)
-                .orElse(VisitEligibilityStatus.NOT_FOUND); // 9월 26일 최종: 방문 자체가 없을 때 처리
-    }
-
-    private VisitEligibilityStatus determineStatus(Visit visit) {
-        boolean arrived = visit.getArrivedAt() != null && visit.getState() == VisitState.ARRIVED;
-        return arrived ? VisitEligibilityStatus.ARRIVED : VisitEligibilityStatus.NOT_ARRIVED; // 9월 26일 최종: 도착 여부만 판단
-    }
-
-    public enum VisitEligibilityStatus {
-        ARRIVED, // 9월 26일 최종: 도착 확인 완료
-        NOT_FOUND, // 9월 26일 최종: 방문 기록 없음
-        NOT_ARRIVED // 9월 26일 최종: 아직 도착하지 않음
+    // 목적: 리뷰/좋아요 요청이 방문 완료 상태인지 신속히 판정한다
+    // 필요 이유: ARRIVED 조건을 중앙에서 재사용해 중복 코드를 줄이고 정책 일관성을 유지한다
+    // 로직: 방문 ID와 사용자 ID로 ARRIVED 상태가 존재하는지 Boolean 쿼리를 실행한다
+    public boolean isArrived(UUID userId, Long visitId) {
+        return visitReadRepository.existsByIdAndUserIdAndState(visitId, userId, VisitState.ARRIVED); // 9월 30일 최종: 존재 여부만 조회하는 경량 검증
     }
 }

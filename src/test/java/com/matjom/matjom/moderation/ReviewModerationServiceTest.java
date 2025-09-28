@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.feed.entity.review.Review;
-import com.matjom.matjom.feed.entity.review.ReviewStatus;
 import com.matjom.matjom.feed.repository.ReviewRepository;
 import com.matjom.matjom.feed.repository.UserReadRepository;
 import com.matjom.matjom.moderation.profanity.ProfanityFilter;
@@ -80,7 +79,6 @@ class ReviewModerationServiceTest {
                 .placeId(1L)
                 .visitId(10L)
                 .text("리뷰")
-                .status(ReviewStatus.ACTIVE)
                 .build();
 
         when(reportRepository.existsByReviewIdAndReporterId(reviewId, reporterId)).thenReturn(false);

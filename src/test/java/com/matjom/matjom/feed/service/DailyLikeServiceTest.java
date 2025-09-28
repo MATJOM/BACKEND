@@ -1,13 +1,13 @@
 package com.matjom.matjom.feed.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
 
-import com.matjom.matjom.feed.dto.response.EligibilityCheckResponseDTO;
+import com.matjom.matjom.common.exception.base.FeedException;
+import com.matjom.matjom.common.exception.message.ErrorCode;
+import com.matjom.matjom.feed.dto.assembler.DailyLikeResponseAssembler;
 import com.matjom.matjom.feed.repository.DailyLikeRepository;
-import com.matjom.matjom.feed.service.DailyLikeResponseAssembler;
-import com.matjom.matjom.feed.service.VisitEligibilityChecker.VisitEligibilityStatus;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,31 +36,35 @@ class DailyLikeServiceTest {
     private static final Long VISIT_ID = 200L;
 
     @Test
-    @DisplayName("방문 도착 상태이고 중복이 없으면 좋아요 가능")
-    void checkLikeEligibilityReturnsEligibleWhenArrived() {
-        given(visitEligibilityChecker.check(USER_ID, VISIT_ID)).willReturn(VisitEligibilityStatus.ARRIVED);
-        given(dailyLikeRepository.existsByVisitId(VISIT_ID)).willReturn(false);
+    @DisplayName("도착하지 않았으면 좋아요가 거부된다")
+    // 목적: ARRIVED가 아닐 때 좋아요 생성이 차단되는지 확인
+    // 상황: 방문 자격 검사를 false로 모킹하고 서비스 호출
+    // 기대: LIKE_NOT_ALLOWED 예외가 발생한다
+    void createLikeFailsWhenNotArrived() {
+        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(false);
 
-        EligibilityCheckResponseDTO response = dailyLikeService.checkLikeEligibility(USER_ID, PLACE_ID, VISIT_ID);
+        var request = new com.matjom.matjom.feed.dto.request.DailyLikeCreateRequestDTO(PLACE_ID, VISIT_ID);
 
-        assertAll(
-                () -> assertThat(response.getEligible()).isTrue(),
-                () -> assertThat(response.getVisitExists()).isTrue(),
-                () -> assertThat(response.getVisitArrived()).isTrue()
-        );
+        FeedException exception = assertThrows(FeedException.class,
+                () -> dailyLikeService.createLike(USER_ID, request));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.LIKE_NOT_ALLOWED);
     }
 
     @Test
-    @DisplayName("아직 도착하지 않은 방문이면 좋아요 불가")
-    void checkLikeEligibilityReturnsNotEligibleWhenNotArrived() {
-        given(visitEligibilityChecker.check(USER_ID, VISIT_ID)).willReturn(VisitEligibilityStatus.NOT_ARRIVED);
+    @DisplayName("이미 좋아요가 있으면 중복 예외를 던진다")
+    // 목적: 동일 방문에 대해 중복 좋아요가 생성되지 않도록 검증
+    // 상황: 자격 검사는 통과하지만 저장소에서 이미 존재한다고 응답하도록 설정
+    // 기대: LIKE_ALREADY_EXISTS 예외가 발생한다
+    void createLikeFailsWhenAlreadyExists() {
+        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
+        given(dailyLikeRepository.existsByVisitId(VISIT_ID)).willReturn(true);
 
-        EligibilityCheckResponseDTO response = dailyLikeService.checkLikeEligibility(USER_ID, PLACE_ID, VISIT_ID);
+        var request = new com.matjom.matjom.feed.dto.request.DailyLikeCreateRequestDTO(PLACE_ID, VISIT_ID);
 
-        assertAll(
-                () -> assertThat(response.getEligible()).isFalse(),
-                () -> assertThat(response.getVisitExists()).isTrue(),
-                () -> assertThat(response.getVisitArrived()).isFalse()
-        );
+        FeedException exception = assertThrows(FeedException.class,
+                () -> dailyLikeService.createLike(USER_ID, request));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.LIKE_ALREADY_EXISTS);
     }
 }

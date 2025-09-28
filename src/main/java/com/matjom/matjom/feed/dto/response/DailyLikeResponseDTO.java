@@ -21,6 +21,9 @@ public class DailyLikeResponseDTO {
     private LikeStatus status;
     private OffsetDateTime createdAt;
 
+    // 목적: 좋아요 엔티티를 응답 DTO로 변환한다
+    // 필요 이유: 서비스에서 매번 builder를 작성하는 반복을 줄이고 일관된 필드 구성을 보장한다
+    // 로직: 엔티티 필드와 조회한 이름 값을 빌더에 채워 DTO를 생성한다
     public static DailyLikeResponseDTO of(DailyLike like, String userName, String placeName) {
         return DailyLikeResponseDTO.builder()
                 .likeId(like.getId())

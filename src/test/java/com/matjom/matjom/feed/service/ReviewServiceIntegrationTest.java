@@ -10,7 +10,6 @@ import com.matjom.matjom.feed.dto.request.ReviewCreateRequestDTO;
 import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.entity.review.Review;
 import com.matjom.matjom.feed.repository.ReviewRepository;
-import com.matjom.matjom.feed.service.VisitEligibilityChecker.VisitEligibilityStatus;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -41,8 +40,11 @@ class ReviewServiceIntegrationTest {
 
     @Test
     @DisplayName("리뷰 작성 성공 시 저장된다")
+    // 목적: 통합 환경에서 ARRIVED 조건을 충족하면 리뷰가 실제로 저장되는지 확인
+    // 상황: 자격 검증이 true를 반환하도록 모킹하고 저장소를 통해 결과를 조회
+    // 기대: 저장된 리뷰가 존재하고 응답 DTO와 동일한 정보를 담는다
     void createReviewPersistsWhenEligible() {
-        given(visitEligibilityChecker.check(USER_ID, VISIT_ID)).willReturn(VisitEligibilityStatus.ARRIVED);
+        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "맛있어요");
 
         ReviewResponseDTO response = reviewService.createReview(USER_ID, request);
@@ -57,8 +59,11 @@ class ReviewServiceIntegrationTest {
 
     @Test
     @DisplayName("방문 정보가 없으면 REVIEW_NOT_ALLOWED 예외")
+    // 목적: 통합 환경에서도 ARRIVED 조건 미충족 시 예외가 발생하는지 검증
+    // 상황: 자격 검증이 false를 반환하도록 설정
+    // 기대: REVIEW_NOT_ALLOWED 예외가 던져진다
     void createReviewFailsWhenVisitMissing() {
-        given(visitEligibilityChecker.check(USER_ID, VISIT_ID)).willReturn(VisitEligibilityStatus.NOT_FOUND);
+        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(false);
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "맛없어요");
 
         FeedException exception = assertThrows(FeedException.class, () -> reviewService.createReview(USER_ID, request));

@@ -3,8 +3,6 @@ package com.matjom.matjom.feed.entity.review;
 import com.matjom.matjom.common.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,17 +41,10 @@ public class Review extends BaseEntity {
     @Setter
     private String text;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
-    @Builder.Default
-    private ReviewStatus status = ReviewStatus.ACTIVE; // 9월 26일 최종: 상태는 ACTIVE/DELETED만 사용
-
-    public void delete() {
-        this.status = ReviewStatus.DELETED; // 9월 26일 최종: 삭제 시 상태 전환만 수행
-        this.markDeleted();
-    }
-
+    // 목적: 리뷰가 삭제되지 않은 상태인지 확인한다
+    // 필요 이유: 소프트 삭제를 사용하는 만큼 표시 여부를 빠르게 판단해야 한다
+    // 로직: BaseEntity의 isDeleted 값을 반대로 반환한다
     public boolean isActive() { // 9월 26일 최종: 심플한 활성 여부 판단
-        return status == ReviewStatus.ACTIVE && !isDeleted();
+        return !isDeleted();
     }
 }

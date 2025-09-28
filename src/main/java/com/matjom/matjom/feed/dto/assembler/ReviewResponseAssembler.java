@@ -1,4 +1,4 @@
-package com.matjom.matjom.feed.service;
+package com.matjom.matjom.feed.dto.assembler;
 
 import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.entity.review.Review;
@@ -19,12 +19,18 @@ public class ReviewResponseAssembler {
     private final UserReadRepository userReadRepository;
     private final PlaceReadRepository placeReadRepository;
 
+    // 목적: 리뷰 엔티티를 응답 DTO로 변환한다
+    // 필요 이유: userId/placeId 대신 사람이 읽기 쉬운 이름 정보를 포함해야 한다
+    // 로직: 사용자·장소 이름을 안전하게 로드해 DTO 팩토리 메서드에 전달한다
     public ReviewResponseDTO toDto(Review review) {
         String reviewerName = loadReviewerName(review.getUserId());
         String placeName = loadPlaceName(review.getPlaceId());
         return ReviewResponseDTO.of(review, reviewerName, placeName);
     }
 
+    // 목적: 사용자 이름을 조회하되 실패 시 기본 문자열을 제공한다
+    // 필요 이유: DB 접근 오류가 있어도 API 응답이 중단되지 않도록 하기 위함이다
+    // 로직: 이름 조회 시 예외를 캐치하고 로그 후 기본값을 반환한다
     private String loadReviewerName(java.util.UUID userId) {
         try {
             return userReadRepository.findNameById(userId).orElse(UNKNOWN);
@@ -34,6 +40,9 @@ public class ReviewResponseAssembler {
         }
     }
 
+    // 목적: 장소 이름을 조회하되 오류 시 기본 문자열을 사용한다
+    // 필요 이유: 외부 요인으로 조회에 실패하더라도 응답을 계속 제공해야 한다
+    // 로직: 조회 예외를 잡아 디버그 로그를 남기고 기본값을 반환한다
     private String loadPlaceName(Long placeId) {
         try {
             return placeReadRepository.findNameById(placeId).orElse(UNKNOWN);

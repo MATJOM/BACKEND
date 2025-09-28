@@ -3,7 +3,7 @@
 ## 1. 리뷰 도메인 슬림화
 - **목적**: 팀장 지침에 따라 리뷰 상태와 필드를 최소화해 관리 복잡도를 줄이고 JWT 기반 사용자 정보 흐름에 집중.
 - **주요 수정**
-  - `Review`, `ReviewStatus`, `schema-postgres.sql`에서 숨김/플래그 관련 필드 제거 후 상태를 `ACTIVE/DELETED`만 사용하도록 정비.
+- `Review` 엔티티는 BaseEntity의 `deleted_at`만 사용하며 별도 상태값을 두지 않는다.
   - `ReviewResponseDTO`를 `reviewId`, `reviewerName`, `placeName`, `text`, `createdAt` 중심으로 재구성하여 응답 가독성을 높임.
   - `ReviewRepository`는 실제 사용하는 조회/집계 메서드만 남겨 단순화.
 - **로직 흐름**
@@ -16,7 +16,6 @@
 - **주요 수정**
   - `VisitReadRepository`로 방문 존재 여부만 확인하는 읽기 전용 접근을 추가.
   - `VisitEligibilityChecker`가 방문 ID·사용자 ID를 기준으로 `ARRIVED/NOT_ARRIVED/NOT_FOUND` 상태를 판정.
-  - `EligibilityCheckResponseDTO`에 `visitExists` 플래그를 추가해 예외 매핑을 세밀화.
 - **로직 흐름**
   1. `ReviewService`, `DailyLikeService`는 공통으로 `visitEligibilityChecker.check(userId, visitId)` 호출.
   2. 결과가 `ARRIVED`가 아니면 DTO에 실패 사유와 상태 플래그를 담아 반환.
@@ -140,6 +139,11 @@
   - UC-Stat-02: 실시간 체류 인원 응답은 신뢰성 문제로 제거. 향후 평균 기반 지표를 도입할 수 있도록 배치 데이터 구조만 유지.
   - UC-Batch-01: 집계/스케줄러/예측 훅/문서화까지 완료. 운영 모니터링 지표 정의는 보완 예정.
   - 공통: `./gradlew test` 전체 통과(9월 29일)로 회귀 검증 완료. README 갱신은 추후 팀장 확인 후 진행.
+
+## 13. Review/Like API 단순화 (10월 ??일)
+- 사용자 전용 화면에서 장소별 리뷰/좋아요 이력이 필요 없으므로 `GET /reviews/my/place/{placeId}`와 `GET /likes/my/place/{placeId}` 엔드포인트를 제거했다.
+- 이에 따라 `ReviewService#getUserPlaceReviews`, `DailyLikeService#getUserPlaceLikes` 및 관련 레포지토리/테스트 코드도 정리했다.
+- 리뷰 삭제 여부는 `BaseEntity.deleted_at`만 활용하도록 `ReviewStatus` enum과 상태 컬럼을 제거했다.
 
 ## 12. UC-Stat-01 및 UC-Stat-02 진행 기록 (9월 30일 최종)
 - **UC-Stat-01 정리**
