@@ -36,5 +36,4 @@ public class ReviewResponseAssembler {
             return UNKNOWN;
         }
     }
-
 }
