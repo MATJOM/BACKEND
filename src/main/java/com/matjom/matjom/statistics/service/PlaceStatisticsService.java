@@ -5,12 +5,10 @@ import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.feed.repository.PlaceReadRepository;
 import com.matjom.matjom.statistics.dto.PlaceStatsResponseDTO;
 import com.matjom.matjom.statistics.dto.PlaceStatsSnapshot;
-import com.matjom.matjom.statistics.dto.StatsDataSource;
 import com.matjom.matjom.statistics.repository.PlaceStatisticsRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,16 +20,13 @@ public class PlaceStatisticsService {
     private final PlaceReadRepository placeReadRepository;
     private final PlaceStatisticsRepository placeStatisticsRepository;
     private final Clock clock;
-    private final long cacheTtlSeconds;
 
     public PlaceStatisticsService(PlaceReadRepository placeReadRepository,
                                   PlaceStatisticsRepository placeStatisticsRepository,
-                                  Clock clock,
-                                  @Value("${statistics.cache.ttl-seconds:300}") long cacheTtlSeconds) {
+                                  Clock clock) {
         this.placeReadRepository = placeReadRepository;
         this.placeStatisticsRepository = placeStatisticsRepository;
         this.clock = clock;
-        this.cacheTtlSeconds = cacheTtlSeconds;
     }
 
     // 장소 존재 여부를 검증하고 최신 통계 스냅샷을 조회한 뒤 DTO로 만들어 반환한다.
@@ -46,6 +41,6 @@ public class PlaceStatisticsService {
                 now.atZoneSameInstant(STATISTICS_ZONE_ID).toLocalDate()
         );
 
-        return PlaceStatsResponseDTO.of(placeName, snapshot, now, cacheTtlSeconds, StatsDataSource.DATABASE); // 9월 29일 최종: 사용자에게 장소 이름 제공
+        return PlaceStatsResponseDTO.of(placeName, snapshot); // 9월 30일 개편: 캐시 없이 DB 스냅샷만 반환
     }
 }

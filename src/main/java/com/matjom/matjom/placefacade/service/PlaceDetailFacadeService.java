@@ -4,7 +4,7 @@ import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.service.ReviewService;
 import com.matjom.matjom.placefacade.dto.PlaceDetailResponseDTO;
 import com.matjom.matjom.statistics.dto.PlaceStatsResponseDTO;
-import com.matjom.matjom.statistics.service.PlaceStatisticsQueryService;
+import com.matjom.matjom.statistics.service.PlaceStatisticsService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,14 +17,14 @@ public class PlaceDetailFacadeService {
 
     private static final int DEFAULT_REVIEW_LIMIT = 5; // 9월 30일 최종: 기본으로 최근 5개 리뷰만 노출
 
-    private final PlaceStatisticsQueryService placeStatisticsQueryService;
+    private final PlaceStatisticsService placeStatisticsService;
     private final ReviewService reviewService;
 
     // 장소 통계와 리뷰를 조합해 한 번에 반환하고 리뷰 노출 개수를 제어한다.
     public PlaceDetailResponseDTO getPlaceDetail(Long placeId, Integer reviewLimit) {
         int effectiveLimit = resolveLimit(reviewLimit);
 
-        PlaceStatsResponseDTO statistics = placeStatisticsQueryService.getPlaceStats(placeId);
+        PlaceStatsResponseDTO statistics = placeStatisticsService.fetchPlaceStats(placeId);
         List<ReviewResponseDTO> reviews = reviewService.getPlaceReviews(placeId);
         long totalReviewCount = reviews.size();
 

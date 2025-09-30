@@ -1,13 +1,11 @@
 package com.matjom.matjom.statistics.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.matjom.matjom.statistics.cache.PlaceStatsCacheService;
 import com.matjom.matjom.statistics.repository.PlaceDailyStatsBatchRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -18,8 +16,6 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,15 +25,6 @@ class DailyStatsBatchServiceTest {
     @Mock
     private PlaceDailyStatsBatchRepository batchRepository;
 
-    @Mock
-    private PlaceStatsCacheService placeStatsCacheService;
-
-    @Mock
-    private DailyStatsPredictionService predictionService;
-
-    @Captor
-    private ArgumentCaptor<String> jsonCaptor;
-
     private DailyStatsBatchService dailyStatsBatchService;
 
     private final Clock fixedClock = Clock.fixed(Instant.parse("2024-09-26T15:00:00Z"), ZoneOffset.UTC);
@@ -46,8 +33,6 @@ class DailyStatsBatchServiceTest {
     void setUp() {
         dailyStatsBatchService = new DailyStatsBatchService(
                 batchRepository,
-                placeStatsCacheService,
-                predictionService,
                 new ObjectMapper(),
                 fixedClock
         );
@@ -94,13 +79,8 @@ class DailyStatsBatchServiceTest {
                 6L,
                 "{\"11\":1,\"12\":3}",
                 "{\"10\":2}",
-                12,
                 OffsetDateTime.now(fixedClock)
         );
-
-        verify(placeStatsCacheService).evict(1L);
-        verify(placeStatsCacheService).evict(2L);
-        verify(predictionService).scheduleRetraining(eq(targetDate), any());
 
         DailyStatsBatchService.BatchStatus status = dailyStatsBatchService.getLastStatus();
         assertThat(status.isSuccess()).isTrue();

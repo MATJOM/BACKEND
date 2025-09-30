@@ -75,7 +75,6 @@ public class PlaceDailyStatsBatchRepository {
             likes,
             hourly_arrives,
             hourly_starts,
-            peak_hour,
             last_aggregated_at
         ) VALUES (
             :targetDate,
@@ -86,7 +85,6 @@ public class PlaceDailyStatsBatchRepository {
             :likes,
             CAST(:hourlyArrives AS jsonb),
             CAST(:hourlyStarts AS jsonb),
-            :peakHour,
             :aggregatedAt
         )
         ON CONFLICT (date_kst, place_id)
@@ -97,7 +95,6 @@ public class PlaceDailyStatsBatchRepository {
             likes = EXCLUDED.likes,
             hourly_arrives = EXCLUDED.hourly_arrives,
             hourly_starts = EXCLUDED.hourly_starts,
-            peak_hour = EXCLUDED.peak_hour,
             last_aggregated_at = EXCLUDED.last_aggregated_at,
             updated_at = now()
     """;
@@ -151,7 +148,6 @@ public class PlaceDailyStatsBatchRepository {
                                  long likes,
                                  String hourlyArrivesJson,
                                  String hourlyStartsJson,
-                                 Integer peakHour,
                                  OffsetDateTime aggregatedAt) {
         entityManager.createNativeQuery(UPSERT_SQL)
                 .setParameter("targetDate", targetDate)
@@ -162,7 +158,6 @@ public class PlaceDailyStatsBatchRepository {
                 .setParameter("likes", likes)
                 .setParameter("hourlyArrives", hourlyArrivesJson)
                 .setParameter("hourlyStarts", hourlyStartsJson)
-                .setParameter("peakHour", peakHour)
                 .setParameter("aggregatedAt", aggregatedAt)
                 .executeUpdate();
     }

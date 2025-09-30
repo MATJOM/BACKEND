@@ -3,11 +3,15 @@ package com.matjom.matjom.feed.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verify;
 
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
-import com.matjom.matjom.feed.dto.assembler.DailyLikeResponseAssembler;
 import com.matjom.matjom.feed.repository.DailyLikeRepository;
+import com.matjom.matjom.feed.entity.likes.DailyLike;
+import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,9 +28,6 @@ class DailyLikeServiceTest {
 
     @Mock
     private VisitEligibilityChecker visitEligibilityChecker;
-
-    @Mock
-    private DailyLikeResponseAssembler dailyLikeResponseAssembler;
 
     @InjectMocks
     private DailyLikeService dailyLikeService;
@@ -66,5 +67,29 @@ class DailyLikeServiceTest {
                 () -> dailyLikeService.createLike(USER_ID, request));
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.LIKE_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("visitId 없이 요청하면 최신 ARRIVED 방문으로 처리된다")
+    // 목적: 프런트가 visitId를 생략한 경우에도 좋아요가 생성되는지 검증
+    // 상황: 최신 ARRIVED 방문 ID를 반환하고 save/assembler 호출을 모킹
+    // 기대: liked=true 응답이 반환된다
+    void createLikeResolvesLatestVisitWhenNotProvided() {
+        given(visitEligibilityChecker.findLatestArrivedVisitId(USER_ID, PLACE_ID))
+                .willReturn(Optional.of(VISIT_ID));
+        given(dailyLikeRepository.existsByVisitId(VISIT_ID)).willReturn(false);
+        DailyLike saved = DailyLike.builder()
+                .id(UUID.randomUUID())
+                .userId(USER_ID)
+                .placeId(PLACE_ID)
+                .visitId(VISIT_ID)
+                .dateKst(LocalDate.now())
+                .build();
+        given(dailyLikeRepository.save(any(DailyLike.class))).willReturn(saved);
+
+        var request = new com.matjom.matjom.feed.dto.request.DailyLikeCreateRequestDTO(PLACE_ID, null);
+
+        dailyLikeService.createLike(USER_ID, request);
+        verify(dailyLikeRepository).save(any(DailyLike.class));
     }
 }

@@ -2,12 +2,10 @@ package com.matjom.matjom.statistics.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.matjom.matjom.statistics.cache.PlaceStatsCacheService;
 import com.matjom.matjom.statistics.repository.PlaceDailyStatsBatchRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -25,15 +23,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class DailyStatsBatchService {
 
     private final PlaceDailyStatsBatchRepository batchRepository;
-    private final PlaceStatsCacheService placeStatsCacheService;
-    private final DailyStatsPredictionService predictionService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
     private final ReentrantLock runLock = new ReentrantLock();
     private final AtomicReference<BatchStatus> lastStatus = new AtomicReference<>(BatchStatus.idle());
 
-    // 자정 배치를 실행해 일별 통계를 모으고 저장하며, 캐시 무효화와 예측 트리거까지 처리한다.
+    // 자정 배치를 실행해 일별 통계를 모으고 저장한다.
     @Transactional
     public BatchResult runAggregation(LocalDate targetDate) {
         runLock.lock();
@@ -42,17 +38,14 @@ public class DailyStatsBatchService {
             OffsetDateTime aggregatedAt = OffsetDateTime.now(clock);
             Map<Long, Aggregate> aggregates = collectAggregates(targetDate);
 
-            Map<Long, DailyStatsSummary> summaries = new HashMap<>();
-
             for (Map.Entry<Long, Aggregate> entry : aggregates.entrySet()) {
                 Long placeId = entry.getKey();
                 Aggregate aggregate = entry.getValue();
 
                 String hourlyArrives = toJson(aggregate.hourlyArrives);
                 String hourlyStarts = toJson(aggregate.hourlyStarts);
-                Integer peakHour = aggregate.resolvePeakHour();
 
-            batchRepository.upsertDailyStats(
+                batchRepository.upsertDailyStats(
                         targetDate,
                         placeId,
                         aggregate.starts,
@@ -61,16 +54,9 @@ public class DailyStatsBatchService {
                         aggregate.likes,
                         hourlyArrives,
                         hourlyStarts,
-                        peakHour,
                         aggregatedAt
                 );
-
-                placeStatsCacheService.evict(placeId);
-
-                summaries.put(placeId, aggregate.toSummary());
             }
-
-            predictionService.scheduleRetraining(targetDate, summaries);
 
             BatchResult result = new BatchResult(targetDate, aggregatedAt, aggregates.size());
             lastStatus.set(BatchStatus.completed(result));
@@ -152,28 +138,6 @@ public class DailyStatsBatchService {
         long likes;
         Map<Integer, Long> hourlyArrives = new TreeMap<>();
         Map<Integer, Long> hourlyStarts = new TreeMap<>();
-
-        // 가장 혼잡한 시간을 찾아 후속 처리에서 피크 시간으로 활용한다.
-        Integer resolvePeakHour() {
-            return hourlyArrives.entrySet().stream()
-                    .filter(entry -> entry.getValue() > 0)
-                    .max(Map.Entry.comparingByValue())
-                    .map(Map.Entry::getKey)
-                    .orElse(null);
-        }
-
-        // 예측 서비스에 전달할 불변 요약 정보를 만든다.
-        DailyStatsSummary toSummary() {
-            return new DailyStatsSummary(
-                    starts,
-                    arrives,
-                    reviews,
-                    likes,
-                    Collections.unmodifiableMap(new TreeMap<>(hourlyArrives)),
-                    Collections.unmodifiableMap(new TreeMap<>(hourlyStarts)),
-                    resolvePeakHour()
-            );
-        }
     }
 
     @Getter
@@ -250,11 +214,4 @@ public class DailyStatsBatchService {
         }
     }
 
-    public record DailyStatsSummary(long starts,
-                                    long arrives,
-                                    long reviews,
-                                    long likes,
-                                    Map<Integer, Long> hourlyArrives,
-                                    Map<Integer, Long> hourlyStarts,
-                                    Integer peakHour) {}
 }

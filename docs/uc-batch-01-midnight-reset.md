@@ -15,33 +15,39 @@
 | `likes` | 전일 `daily_likes` 테이블의 `ACTIVE` 건수 |
 | `hourly_arrives` | 전일 시간대별 도착 수(JSON) |
 | `hourly_starts` | 전일 시간대별 출발 수(JSON) |
-| `peak_hour` | 도착 수가 가장 많은 시간대(없으면 `null`) |
 
 ## 처리 순서
 1. `PlaceDailyStatsBatchRepository`가 `visits`, `reviews`, `daily_likes` 데이터를 KST 기준으로 집계.
 2. `DailyStatsBatchService`가 시간대별 지도와 총계 데이터를 생성해 `place_daily_stats`에 `INSERT ... ON CONFLICT`로 업서트.
-3. 업서트 후 해당 `placeId`의 캐시를 모두 삭제 (`PlaceStatsCacheService`, `PlaceVisitInfoCacheService`).
-4. 예측 재학습 훅(`DailyStatsPredictionService.scheduleRetraining`)을 호출해 모델 업데이트 트리거.
-5. 배치 실행 결과(`targetDate`, `executedAt`, `processedPlaces`)를 상태로 보관.
+3. (옵션) 향후 캐시 도입 시에는 업서트 후 해당 `placeId`에 대한 캐시를 무효화한다.
+4. 배치 실행 결과(`targetDate`, `executedAt`, `processedPlaces`)를 상태로 보관.
 
 ## API 응답 예시
 ### POST `/api/batch/midnight-reset`
 ```json
 {
-  "targetDate": "2024-09-25",
-  "executedAt": "2024-09-26T00:00:02Z",
-  "processedPlaces": 128
+  "success": true,
+  "data": {
+    "targetDate": "2024-09-25",
+    "executedAt": "2024-09-26T00:00:02Z",
+    "processedPlaces": 128
+  },
+  "timestamp": "2024-09-26T00:00:02Z"
 }
 ```
 
 ### GET `/api/batch/status/last`
 ```json
 {
-  "running": false,
   "success": true,
-  "targetDate": "2024-09-25",
-  "executedAt": "2024-09-26T00:00:02Z",
-  "message": "COMPLETED"
+  "data": {
+    "running": false,
+    "success": true,
+    "targetDate": "2024-09-25",
+    "executedAt": "2024-09-26T00:00:02Z",
+    "message": "COMPLETED"
+  },
+  "timestamp": "2024-09-26T00:01:00Z"
 }
 ```
 

@@ -2,7 +2,6 @@ package com.matjom.matjom.feed.dto.assembler;
 
 import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.entity.review.Review;
-import com.matjom.matjom.feed.repository.PlaceReadRepository;
 import com.matjom.matjom.feed.repository.UserReadRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,15 +16,13 @@ public class ReviewResponseAssembler {
     private static final String UNKNOWN = "알 수 없음"; // 9월 26일 최종: 기본 문자열
 
     private final UserReadRepository userReadRepository;
-    private final PlaceReadRepository placeReadRepository;
 
     // 목적: 리뷰 엔티티를 응답 DTO로 변환한다
-    // 필요 이유: userId/placeId 대신 사람이 읽기 쉬운 이름 정보를 포함해야 한다
-    // 로직: 사용자·장소 이름을 안전하게 로드해 DTO 팩토리 메서드에 전달한다
+    // 필요 이유: userId 대신 사람이 읽기 쉬운 작성자 이름을 포함해야 한다
+    // 로직: 사용자 이름을 안전하게 로드해 DTO 팩토리 메서드에 전달한다
     public ReviewResponseDTO toDto(Review review) {
         String reviewerName = loadReviewerName(review.getUserId());
-        String placeName = loadPlaceName(review.getPlaceId());
-        return ReviewResponseDTO.of(review, reviewerName, placeName);
+        return ReviewResponseDTO.of(review, reviewerName); // 9월 30일 최종: 작성자 이름과 본문만 포함
     }
 
     // 목적: 사용자 이름을 조회하되 실패 시 기본 문자열을 제공한다
@@ -40,15 +37,4 @@ public class ReviewResponseAssembler {
         }
     }
 
-    // 목적: 장소 이름을 조회하되 오류 시 기본 문자열을 사용한다
-    // 필요 이유: 외부 요인으로 조회에 실패하더라도 응답을 계속 제공해야 한다
-    // 로직: 조회 예외를 잡아 디버그 로그를 남기고 기본값을 반환한다
-    private String loadPlaceName(Long placeId) {
-        try {
-            return placeReadRepository.findNameById(placeId).orElse(UNKNOWN);
-        } catch (DataAccessException ex) {
-            log.debug("장소 이름 조회 실패: placeId={} ", placeId, ex);
-            return UNKNOWN;
-        }
-    }
 }

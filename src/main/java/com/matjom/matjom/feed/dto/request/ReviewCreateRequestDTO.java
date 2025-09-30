@@ -14,7 +14,6 @@ public class ReviewCreateRequestDTO {
     @NotNull(message = "장소 ID는 필수입니다")
     private Long placeId;
 
-    @NotNull(message = "방문 ID는 필수입니다")
     private Long visitId;
 
     @NotBlank(message = "리뷰 내용은 필수입니다")

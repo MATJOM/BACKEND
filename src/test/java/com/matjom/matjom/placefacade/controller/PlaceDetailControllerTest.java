@@ -7,15 +7,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.placefacade.dto.PlaceDetailResponseDTO;
 import com.matjom.matjom.placefacade.service.PlaceDetailFacadeService;
 import com.matjom.matjom.statistics.dto.PlaceStatsResponseDTO;
-import com.matjom.matjom.statistics.dto.StatsDataSource;
 import java.time.OffsetDateTime;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -31,9 +29,6 @@ class PlaceDetailControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @MockBean
     private PlaceDetailFacadeService placeDetailFacadeService;
 
@@ -44,17 +39,11 @@ class PlaceDetailControllerTest {
                 .placeName("맛집")
                 .totalVisitors(200)
                 .totalLikes(150)
-                .arrivals11To12(12)
-                .arrivals12To13(9)
-                .generatedAt(OffsetDateTime.now())
-                .cacheTtlSeconds(300)
-                .dataSource(StatsDataSource.DATABASE)
+                .hourlyArrivals(sampleHourly())
                 .build();
 
         ReviewResponseDTO review = ReviewResponseDTO.builder()
-                .reviewId(UUID.randomUUID())
                 .reviewerName("고객A")
-                .placeName("맛집")
                 .text("정말 맛있어요")
                 .createdAt(OffsetDateTime.now())
                 .build();
@@ -71,10 +60,19 @@ class PlaceDetailControllerTest {
                         .param("reviewLimit", "3")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.statistics.placeName").value("맛집"))
-                .andExpect(jsonPath("$.reviews[0].reviewerName").value("고객A"))
-                .andExpect(jsonPath("$.totalReviewCount").value(1));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.statistics.placeName").value("맛집"))
+                .andExpect(jsonPath("$.data.reviews[0].reviewerName").value("고객A"))
+                .andExpect(jsonPath("$.data.totalReviewCount").value(1));
 
         verify(placeDetailFacadeService).getPlaceDetail(eq(5L), eq(3));
+    }
+
+    private List<PlaceStatsResponseDTO.HourlyAverage> sampleHourly() {
+        List<PlaceStatsResponseDTO.HourlyAverage> hourly = new LinkedList<>();
+        for (int hour = 11; hour <= 20; hour++) {
+            hourly.add(new PlaceStatsResponseDTO.HourlyAverage(hour, hour - 10));
+        }
+        return hourly;
     }
 }

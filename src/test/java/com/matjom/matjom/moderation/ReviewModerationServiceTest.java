@@ -8,9 +8,9 @@ import static org.mockito.Mockito.when;
 
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
+import com.matjom.matjom.feed.entity.review.Review;
 import com.matjom.matjom.feed.repository.ReviewRepository;
 import com.matjom.matjom.moderation.report.dto.ReportReviewRequestDTO;
-import com.matjom.matjom.moderation.report.dto.ReportReviewResponseDTO;
 import com.matjom.matjom.moderation.report.entity.ReportReason;
 import com.matjom.matjom.moderation.report.entity.ReviewReport;
 import com.matjom.matjom.moderation.report.repository.ReviewReportRepository;
@@ -83,7 +83,7 @@ class ReviewModerationServiceTest {
                 .description("부적절한 표현")
                 .build();
 
-        ReportReviewResponseDTO response = service.reportReview(reviewId, reporterId, request);
+        service.reportReview(reviewId, reporterId, request);
 
         ArgumentCaptor<ReviewReport> reportCaptor = ArgumentCaptor.forClass(ReviewReport.class);
         verify(reportRepository).save(reportCaptor.capture());
@@ -93,8 +93,32 @@ class ReviewModerationServiceTest {
         assertThat(savedReport.getReporterId()).isEqualTo(reporterId);
         assertThat(savedReport.getReason()).isEqualTo(ReportReason.SPAM);
         assertThat(savedReport.getDescription()).isEqualTo("부적절한 표현");
+    }
 
-        assertThat(response.getReportCount()).isEqualTo(2L);
-        assertThat(response.getReportId()).isEqualTo(savedReport.getId());
+    @Test
+    void 신고가_3회이상이면_리뷰가_자동삭제된다() {
+        UUID reviewId = UUID.randomUUID();
+        UUID reporterId = UUID.randomUUID();
+
+        when(reportRepository.existsByReviewIdAndReporterId(reviewId, reporterId)).thenReturn(false);
+        when(reviewRepository.existsByIdAndDeletedAtIsNull(reviewId)).thenReturn(true);
+        when(reportRepository.save(any(ReviewReport.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0, ReviewReport.class));
+        when(reportRepository.countByReviewId(reviewId)).thenReturn(3L);
+
+        Review review = Review.builder()
+                .id(reviewId)
+                .userId(UUID.randomUUID())
+                .placeId(1L)
+                .visitId(10L)
+                .text("리뷰 내용")
+                .build();
+
+        when(reviewRepository.findById(reviewId)).thenReturn(java.util.Optional.of(review));
+
+        service.reportReview(reviewId, reporterId,
+                ReportReviewRequestDTO.builder().reason(ReportReason.SPAM).build());
+
+        assertThat(review.isDeleted()).isTrue();
     }
 }

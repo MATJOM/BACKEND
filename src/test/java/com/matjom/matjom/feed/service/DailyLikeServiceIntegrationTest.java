@@ -7,7 +7,6 @@ import static org.mockito.BDDMockito.given;
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.feed.dto.request.DailyLikeCreateRequestDTO;
-import com.matjom.matjom.feed.dto.response.DailyLikeResponseDTO;
 import com.matjom.matjom.feed.entity.likes.DailyLike;
 import com.matjom.matjom.feed.entity.likes.LikeStatus;
 import com.matjom.matjom.feed.repository.DailyLikeRepository;
@@ -34,7 +33,7 @@ class DailyLikeServiceIntegrationTest {
     @MockBean
     private VisitEligibilityChecker visitEligibilityChecker;
 
-    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final Long PLACE_ID = 2L;
     private static final Long VISIT_ID = 20L;
 
@@ -47,13 +46,11 @@ class DailyLikeServiceIntegrationTest {
         given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
         DailyLikeCreateRequestDTO request = new DailyLikeCreateRequestDTO(PLACE_ID, VISIT_ID);
 
-        DailyLikeResponseDTO response = dailyLikeService.createLike(USER_ID, request);
+        dailyLikeService.createLike(USER_ID, request);
 
-        DailyLike saved = dailyLikeRepository.findById(response.getLikeId()).orElseThrow();
+        DailyLike saved = dailyLikeRepository.findByVisitId(VISIT_ID).orElseThrow();
         assertThat(saved.getStatus()).isEqualTo(LikeStatus.ACTIVE);
         assertThat(saved.getPlaceId()).isEqualTo(PLACE_ID);
-        assertThat(response.getUserName()).isEqualTo("알 수 없음");
-        assertThat(response.getPlaceName()).isEqualTo("알 수 없음");
     }
 
     @Test
@@ -64,11 +61,13 @@ class DailyLikeServiceIntegrationTest {
     void cancelLikeSetsStatusCancelled() {
         given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
         DailyLikeCreateRequestDTO request = new DailyLikeCreateRequestDTO(PLACE_ID, VISIT_ID);
-        DailyLikeResponseDTO created = dailyLikeService.createLike(USER_ID, request);
+        dailyLikeService.createLike(USER_ID, request);
 
-        dailyLikeService.cancelLike(USER_ID, created.getLikeId());
+        DailyLike created = dailyLikeRepository.findByVisitId(VISIT_ID).orElseThrow();
 
-        DailyLike cancelled = dailyLikeRepository.findById(created.getLikeId()).orElseThrow();
+        dailyLikeService.cancelLike(USER_ID, created.getId());
+
+        DailyLike cancelled = dailyLikeRepository.findById(created.getId()).orElseThrow();
         assertThat(cancelled.getStatus()).isEqualTo(LikeStatus.CANCELLED);
     }
 
@@ -80,12 +79,14 @@ class DailyLikeServiceIntegrationTest {
     void reactivateLikeSetsStatusActive() {
         given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
         DailyLikeCreateRequestDTO request = new DailyLikeCreateRequestDTO(PLACE_ID, VISIT_ID);
-        DailyLikeResponseDTO created = dailyLikeService.createLike(USER_ID, request);
+        dailyLikeService.createLike(USER_ID, request);
 
-        dailyLikeService.cancelLike(USER_ID, created.getLikeId());
-        dailyLikeService.reactivateLike(USER_ID, created.getLikeId());
+        DailyLike created = dailyLikeRepository.findByVisitId(VISIT_ID).orElseThrow();
 
-        DailyLike reactivated = dailyLikeRepository.findById(created.getLikeId()).orElseThrow();
+        dailyLikeService.cancelLike(USER_ID, created.getId());
+        dailyLikeService.reactivateLike(USER_ID, created.getId());
+
+        DailyLike reactivated = dailyLikeRepository.findById(created.getId()).orElseThrow();
         assertThat(reactivated.getStatus()).isEqualTo(LikeStatus.ACTIVE);
     }
 

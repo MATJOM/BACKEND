@@ -1,10 +1,10 @@
 package com.matjom.matjom.placefacade.controller;
 
+import com.matjom.matjom.common.response.ApiResponse;
 import com.matjom.matjom.placefacade.dto.PlaceDetailResponseDTO;
 import com.matjom.matjom.placefacade.service.PlaceDetailFacadeService;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,11 +22,11 @@ public class PlaceDetailController {
 
     // 장소 상세 화면에서 필요한 통계·리뷰 묶음 정보를 반환한다.
     @GetMapping
-    public ResponseEntity<PlaceDetailResponseDTO> getPlaceDetail(
+    public ApiResponse<PlaceDetailResponseDTO> getPlaceDetail(
             @PathVariable @Positive Long placeId,
             @RequestParam(name = "reviewLimit", required = false) Integer reviewLimit
     ) {
         PlaceDetailResponseDTO response = placeDetailFacadeService.getPlaceDetail(placeId, reviewLimit);
-        return ResponseEntity.ok(response);
+        return ApiResponse.ok(response);
     }
 }

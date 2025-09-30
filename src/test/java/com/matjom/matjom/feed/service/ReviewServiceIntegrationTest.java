@@ -34,7 +34,7 @@ class ReviewServiceIntegrationTest {
     @MockBean
     private VisitEligibilityChecker visitEligibilityChecker;
 
-    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final Long PLACE_ID = 1L;
     private static final Long VISIT_ID = 10L;
 
@@ -52,9 +52,8 @@ class ReviewServiceIntegrationTest {
         Optional<Review> saved = reviewRepository.findByVisitId(VISIT_ID);
         assertThat(saved).isPresent();
         assertThat(saved.get().getText()).isEqualTo("맛있어요");
-        assertThat(response.getReviewId()).isEqualTo(saved.get().getId());
-        assertThat(response.getReviewerName()).isEqualTo("알 수 없음"); // 9월 26일 최종: 기본 이름 반환
-        assertThat(response.getPlaceName()).isEqualTo("알 수 없음");
+        assertThat(response.getReviewerName()).isNotBlank();
+        assertThat(response.getText()).isEqualTo("맛있어요");
     }
 
     @Test

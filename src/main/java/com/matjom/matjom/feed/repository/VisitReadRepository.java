@@ -2,6 +2,7 @@ package com.matjom.matjom.feed.repository;
 
 import com.matjom.matjom.visit.entity.Visit;
 import com.matjom.matjom.visit.entity.VisitState;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +24,16 @@ public interface VisitReadRepository extends JpaRepository<Visit, Long> {
     boolean existsByIdAndUserIdAndState(@Param("visitId") Long visitId,
                                         @Param("userId") UUID userId,
                                         @Param("state") VisitState state); // 9월 30일 최종: ARRIVED 여부만 판정하는 경량 쿼리
+
+    // 목적: 가장 최근 ARRIVED 방문을 찾아 ID를 돌려준다
+    // 필요 이유: 프런트에서 visitId를 넘겨주지 않아도 리뷰/좋아요를 처리할 수 있도록 한다
+    // 로직: 사용자·장소·상태 조건을 만족하는 방문을 도착 시각 내림차순으로 조회해 첫 번째 ID를 반환한다
+    Optional<Visit> findFirstByUser_IdAndPlace_IdAndStateAndDeletedAtIsNullOrderByArrivedAtDesc(UUID userId,
+                                                                                              Long placeId,
+                                                                                              VisitState state);
+
+    default Optional<Long> findLatestArrivedVisitId(UUID userId, Long placeId) { // 9월 30일 최종: ARRIVED 방문 자동 매칭 용도
+        return findFirstByUser_IdAndPlace_IdAndStateAndDeletedAtIsNullOrderByArrivedAtDesc(userId, placeId, VisitState.ARRIVED)
+                .map(Visit::getId);
+    }
 }

@@ -4,33 +4,32 @@
 - **목적**: 팀장 지침에 따라 리뷰 상태와 필드를 최소화해 관리 복잡도를 줄이고 JWT 기반 사용자 정보 흐름에 집중.
 - **주요 수정**
 - `Review` 엔티티는 BaseEntity의 `deleted_at`만 사용하며 별도 상태값을 두지 않는다.
-  - `ReviewResponseDTO`를 `reviewId`, `reviewerName`, `placeName`, `text`, `createdAt` 중심으로 재구성하여 응답 가독성을 높임.
+  - `ReviewResponseDTO`는 `reviewerName`, `text`, `createdAt`만 노출해 프런트가 필요한 최소 정보만 전달.
   - `ReviewRepository`는 실제 사용하는 조회/집계 메서드만 남겨 단순화.
 - **로직 흐름**
   1. 리뷰 작성 시 엔티티는 최소 정보(`userId`, `placeId`, `visitId`, `text`)만 저장.
-  2. 저장 이후 `ReviewResponseAssembler`가 `UserReadRepository`·`PlaceReadRepository`를 통해 사용자/장소 이름을 조회하여 DTO를 조립. 조회 실패 시 기본 문자열("알 수 없음")을 반환해 테스트 환경에서도 안전하게 동작.
-  3. 목록 조회·수정 등 모든 경로에서 assembler를 사용하여 이름 정보를 포함한 응답을 반환.
+  2. 저장 이후 `ReviewResponseAssembler`가 `UserReadRepository`를 통해 작성자 이름만 조회해 DTO를 조립. 조회 실패 시 기본 문자열("알 수 없음")을 반환해 테스트 환경에서도 안전하게 동작.
+  3. 목록 조회·수정 등 모든 경로에서 assembler를 사용하여 동일한 최소 응답을 반환.
 
 ## 2. Visit 연동 자격 검증 표준화
 - **목적**: 리뷰/좋아요 작성 조건을 일관된 규칙으로 묶어 서비스 간 중복 로직을 제거하고 유지보수성을 확보.
 - **주요 수정**
-  - `VisitReadRepository`로 방문 존재 여부만 확인하는 읽기 전용 접근을 추가.
-  - `VisitEligibilityChecker`가 방문 ID·사용자 ID를 기준으로 `ARRIVED/NOT_ARRIVED/NOT_FOUND` 상태를 판정.
+  - `VisitReadRepository`에 `findLatestArrivedVisitId`를 추가해 placeId만으로 최신 ARRIVED 방문을 찾을 수 있게 함.
+  - `VisitEligibilityChecker`가 `isArrived` + `findLatestArrivedVisitId` 조합으로 명시/생략 두 케이스를 모두 지원.
 - **로직 흐름**
-  1. `ReviewService`, `DailyLikeService`는 공통으로 `visitEligibilityChecker.check(userId, visitId)` 호출.
-  2. 결과가 `ARRIVED`가 아니면 DTO에 실패 사유와 상태 플래그를 담아 반환.
-  3. 서비스는 DTO 상태에 따라 `REVIEW_NOT_ALLOWED`, `ARRIVAL_NOT_CONFIRMED`, `REVIEW_ALREADY_EXISTS`, `LIKE_ALREADY_EXISTS` 등 적절한 `FeedException`을 던짐.
+  1. `ReviewService`, `DailyLikeService`는 요청에 `visitId`가 없으면 `findLatestArrivedVisitId`로 자동 매칭 후 자격을 검증.
+  2. 명시된 `visitId`는 `isArrived` 검사를 통과해야 하며, 실패 시 `FeedException(REVIEW_NOT_ALLOWED/LIKE_NOT_ALLOWED)` 발생.
+  3. 중복 체크 후 정상 등록 시 기존과 동일한 예외 코드를 사용해 흐름을 유지.
 
 ## 3. 좋아요 플로우 정리
 - **목적**: 리뷰와 동일한 철학으로 좋아요 도메인을 단순화하고 핵심 기능(등록/취소/재활성화)에 집중.
 - **주요 수정**
-  - `DailyLike`, `LikeStatus`, DTO/Repository/Service를 새로 작성해 상태(`ACTIVE/CANCELLED`)와 날짜(`dateKst`)만 유지.
-  - `DailyLikeRepository`는 방문당 중복 여부 확인과 사용자/장소별 활성 좋아요 조회만 제공.
+  - 좋아요 API는 `ApiResponse.ok()`만 반환해 성공 여부만 전달.
+  - `DailyLikeRepository`에 `findByVisitId`를 추가해 저장 직후 엔티티를 손쉽게 조회.
 - **로직 흐름**
-  - 등록: 자격 확인 → `DailyLike` 저장 → `DailyLikeResponseDTO` 반환.
+  - 등록: 자격 확인 → `DailyLike` 저장 → 응답은 `ApiResponse.ok()`.
   - 취소: 작성자 확인 → `dailyLike.cancel(now)` → 상태 `CANCELLED`.
   - 재활성화: 동일 사용자 확인 → `dailyLike.reactivate()` → 상태 `ACTIVE`.
-  - 조회: 사용자·장소별 `ACTIVE` 좋아요만 반환.
 
 ## 4. JWT 사용자 정보 적용
 - **목적**: 서비스 계층에서 JWT 기반 사용자 식별을 활용할 수 있도록 공통 사용자 디테일 정의.
@@ -41,22 +40,22 @@
 - **목적**: 변경된 로직을 검증하고 Testcontainers가 없는 환경에서도 테스트를 수행할 수 있도록 조정.
 - **단위 테스트**
   - `ReviewServiceTest`
-    - `checkReviewEligibilityReturnsEligibleWhenArrived`: 방문 상태가 `ARRIVED`이고 중복 리뷰가 없을 때 DTO가 `eligible=true`로 반환되는지 검증.
-    - `checkReviewEligibilityReturnsNotEligibleWhenVisitMissing`: 방문이 존재하지 않을 때 `visitExists=false`, `eligible=false`가 되는지 확인.
-    - `checkReviewEligibilityReturnsNotEligibleWhenAlreadyWritten`: 동일 방문에 리뷰가 이미 존재하면 `alreadyWritten=true`로 작성이 차단되는지 검증.
+    - `createReviewFailsWhenNotArrived`: ARRIVED 전에는 작성이 차단되는지 검증.
+    - `createReviewFailsWhenAlreadyWritten`: 동일 방문 중복 작성 차단 검증.
+    - `createReviewResolvesLatestVisitWhenNotProvided`: `visitId` 없이 요청해도 최신 ARRIVED 방문을 자동 매칭하는지 확인.
   - `DailyLikeServiceTest`
-    - `checkLikeEligibilityReturnsEligibleWhenArrived`: 방문이 도착 상태면서 중복 좋아요가 없을 때 `eligible=true`.
-    - `checkLikeEligibilityReturnsNotEligibleWhenNotArrived`: 아직 도착하지 않은 방문이면 `visitArrived=false`와 함께 좋아요가 제한되는지 확인.
+    - `createLikeFailsWhenNotArrived`: ARRIVED 전 좋아요 차단 검증.
+    - `createLikeFailsWhenAlreadyExists`: 동일 방문 중복 좋아요 차단 검증.
+    - `createLikeResolvesLatestVisitWhenNotProvided`: `visitId` 생략 시 자동 매칭으로 저장이 이뤄지는지 확인.
 - **통합 테스트**
   - `ReviewServiceIntegrationTest`
-    - `createReviewPersistsWhenEligible`: 방문 자격을 통과하면 리뷰가 저장되고 응답 DTO가 `reviewId`, `text`, 기본 이름(`알 수 없음`)을 포함하는지 확인.
+    - `createReviewPersistsWhenEligible`: 방문 자격을 통과하면 리뷰가 저장되고 응답 DTO가 작성자 이름/본문을 담는지 확인.
     - `createReviewFailsWhenVisitMissing`: 방문이 없을 때 `FeedException(REVIEW_NOT_ALLOWED)`가 발생하는지 검증.
   - `DailyLikeServiceIntegrationTest`
-    - `createLikePersistsWhenEligible`: 좋아요 등록 시 엔티티가 `ACTIVE` 상태로 저장되는지 확인.
+    - `createLikePersistsWhenEligible`: 좋아요 등록 시 엔티티가 `ACTIVE` 상태로 저장되는지 검증.
     - `cancelLikeSetsStatusCancelled`: 취소 후 상태가 `CANCELLED`로 바뀌고 취소 시각이 기록되는지 검증.
     - `reactivateLikeSetsStatusActive`: 취소한 좋아요를 재활성화하면 상태가 `ACTIVE`로 복원되는지 확인.
     - `createLikeFailsWhenVisitMissing`: 방문이 없을 때 `FeedException(LIKE_NOT_ALLOWED)`가 발생하는지 검증.
-    - `getUserPlaceLikesReturnsActiveOnes`: 사용자/장소별 조회 시 `ACTIVE` 상태 좋아요만 반환되는지 확인.
 - **테스트 환경 구성**
   - `MatjomApplicationTests`는 Docker 미사용 환경에서 빌드 실패를 막기 위해 `@Disabled("Requires Docker to run Testcontainers")` 처리.
   - `JpaConfig`에 `DateTimeProvider`를 등록하고 `hibernate.jdbc.time_zone=UTC` 설정으로 감사 필드(`OffsetDateTime`)와 H2 테스트 간 시간대 차이를 해소.
@@ -76,7 +75,8 @@
 - **흐름**
   1. 신고자가 동일 리뷰를 다시 신고하려 하면 `ReviewReportRepository.existsByReviewIdAndReporterId`가 중복을 차단합니다.
   2. 신고 대상 리뷰가 삭제되지 않은 상태로 존재하는지 `ReviewRepository.existsByIdAndDeletedAtIsNull`로 확인한 뒤 `review_reports`에 이력을 한 건 추가합니다.
-  3. 응답 DTO(`ReportReviewResponseDTO`)는 신고 ID, 사유/설명, 신고 시각, 누적 건수(`reportCount`)만 내려 사용자에게 “신고 접수 완료” 정도의 정보만 제공합니다.
+  3. 신고가 3회 이상 누적되면 서버가 리뷰를 자동으로 소프트 삭제(`markDeleted`) 처리합니다.
+  4. API 응답은 성공 여부만 내려주고, 프런트는 “신고가 완료되었습니다. 확인 후 조치 예정입니다.” 같은 메시지만 표시하면 됩니다.
 - **엔티티·스키마 연계**
   - `ReviewReport` 엔티티는 `review_id`와 `reporter_id`를 각각 리뷰/사용자와 연결합니다. 스키마에서도 `reporter_id` → `users(id)` FK를 지정해 신고자가 항상 유효한 사용자로 연결되도록 보장합니다.
   - 신고 건수 집계는 `ReviewReportRepository.countByReviewId` 단일 메서드로 처리하며 별도 경고 필드가 없습니다.
@@ -147,17 +147,16 @@
 
 ## 12. UC-Stat-01 및 UC-Stat-02 진행 기록 (9월 30일 최종)
 - **UC-Stat-01 정리**
-  - DTO & 스냅샷: `PlaceStatsResponseDTO`가 `placeName`, 누적 방문/좋아요, 특정 시간대(11~12시·12~13시) 최근 14일 평균 도착 수만 응답에 노출하고, `generatedAt`/`cacheTtlSeconds`/`dataSource`는 `@JsonIgnore`로 숨겨 내부 모니터링용으로 유지.
-  - 서비스 계층: `PlaceStatisticsService`가 `PlaceReadRepository.findNameById`로 존재 여부와 이름을 동시에 확인해 DTO를 빌드.
-  - 캐시 연동: `PlaceStatsCacheService`가 `put(Long placeId, PlaceStatsResponseDTO)` 형태로 변경돼 캐시 키는 placeId, 응답은 placeName을 유지.
+  - DTO & 스냅샷: `PlaceStatsResponseDTO`가 `placeName`, 누적 방문/좋아요, 특정 시간대(11~12시·12~13시) 최근 14일 평균 도착 수만 응답에 노출.
+  - 서비스 계층: `PlaceStatisticsService`가 `PlaceReadRepository.findNameById`로 존재 여부와 이름을 동시에 확인해 DTO를 빌드하고, 캐시 없이 DB 스냅샷을 직접 반환한다.
   - 시간대 지표: `PlaceStatisticsRepository`가 최근 14일(당일 포함) 11~12시·12~13시 도착 인원을 평균 내어 반올림한 값을 반환하도록 갱신.
-  - 테스트: 서비스/쿼리/컨트롤러 단위 테스트를 모두 갱신해 placeName 응답과 캐시 키 변화, fallback 흐름을 검증.
+  - 테스트: 서비스/쿼리/컨트롤러 단위 테스트를 모두 갱신해 placeName 응답과 스냅샷 계산을 검증.
   - 문서: `docs/uc-stat-01-api.md`, `docs/statistics-change-log.md`, `docs/statistics-presentation.md`에 placeName 응답 및 최신 흐름 반영.
 - **UC-Stat-02 상태**
   - 실시간 체류 인원 API(`/visit-info`)는 제거되었습니다. 향후 필요하면 배치 기반 평균 지표로 재설계합니다.
   - 관련 서비스/캐시/컨트롤러/테스트/문서는 정리되었고, 문서에서는 폐기 상태로 명시했습니다.
 - **UC-Batch-01 유지보수**
-  - 기존 집계/스케줄/예측 훅 구조는 그대로 유지하되, 캐시 무효화 대상에 새로 단순화된 visit-info 응답이 포함됨을 확인.
+  - 기존 집계/스케줄/예측 훅 구조는 그대로 유지하며, 자정 배치가 누적 통계 테이블을 최신 상태로 갱신한다.
 - **남은 TODO**
   - UC-Stat-01: 오류 응답 규격 정리.
   - UC-Stat-02: 추후 패턴/예측 재도입 시 재플래닝.
@@ -167,8 +166,8 @@
 - **목적**: 장소 상세 화면에서 통계와 최신 리뷰를 묶어 전달하는 전용 API를 제공해 프론트엔드 호출 수를 최소화.
 - **핵심 구성**
   - `PlaceDetailResponseDTO`: 통계(`PlaceStatsResponseDTO`), 리뷰 리스트(`ReviewResponseDTO`), 전체 리뷰 수를 포함하는 응답 DTO.
-  - `PlaceDetailFacadeService`: 통계 캐시(`PlaceStatisticsQueryService`)와 리뷰 서비스(`ReviewService`)를 주입받아 조합하며, 기본으로 최근 5개 리뷰만 반환하고 `reviewLimit` 파라미터로 조절 가능.
-  - `PlaceDetailController`: `GET /api/places/{placeId}/detail` 엔드포인트. 관리자 API가 아닌 일반 사용자 진입점을 위한 조합 API로 설계.
+  - `PlaceDetailFacadeService`: 통계 서비스(`PlaceStatisticsService`)와 리뷰 서비스(`ReviewService`)를 주입받아 조합하며, 기본으로 최근 5개 리뷰만 반환하고 `reviewLimit` 파라미터로 조절 가능.
+  - `PlaceDetailController`: `GET /api/places/{placeId}/detail` 엔드포인트. `ApiResponse` 포맷으로 통계+리뷰 묶음을 반환하며, 관리자 API가 아닌 일반 사용자 진입점을 위한 조합 API로 설계.
 - **테스트**
   - `PlaceDetailFacadeServiceTest`: 기본 제한(5개)과 전체 리뷰 수 계산을 검증.
   - `PlaceDetailControllerTest`: MockMvc 기반으로 응답 구조와 쿼리 파라미터 전달을 확인.

@@ -44,12 +44,9 @@ public class ReviewService {
         log.info("리뷰 작성 시작: userId={}, placeId={}, visitId={}",
                 maskUserId(userId), request.getPlaceId(), request.getVisitId());
 
-        // 1. 기회 확인 로직
-        if (!visitEligibilityChecker.isArrived(userId, request.getVisitId())) {
-            throw new FeedException(ErrorCode.REVIEW_NOT_ALLOWED, "도착 확인 후 작성 가능합니다");
-        }
+        Long visitId = resolveArrivedVisitId(userId, request.getPlaceId(), request.getVisitId()); // 9월 30일 최종: visitId 자동 매칭
 
-        if (reviewRepository.existsByVisitId(request.getVisitId())) {
+        if (reviewRepository.existsByVisitId(visitId)) {
             throw new FeedException(ErrorCode.REVIEW_ALREADY_EXISTS, "이미 리뷰를 작성하셨습니다");
         }
 
@@ -61,7 +58,7 @@ public class ReviewService {
         Review review = Review.builder()
                 .userId(userId)
                 .placeId(request.getPlaceId())
-                .visitId(request.getVisitId())
+                .visitId(visitId)
                 .text(request.getText())
                 .build(); // 9월 26일 최종: 최소 필드만 설정
 
@@ -161,5 +158,20 @@ public class ReviewService {
     private String maskUserId(UUID userId) {
         String value = userId.toString();
         return value.substring(0, 8) + "****";
+    }
+
+    // 목적: 요청에 visitId가 없거나 잘못된 경우 최신 ARRIVED 방문을 찾아낸다
+    // 필요 이유: 프런트에서 placeId만 전달해도 리뷰를 작성할 수 있도록 하기 위함이다
+    // 로직: 명시된 visitId는 ARRIVED 여부를 검증하고, 없으면 리포지토리에서 최신 ARRIVED 방문 ID를 조회한다
+    private Long resolveArrivedVisitId(UUID userId, Long placeId, Long requestedVisitId) {
+        if (requestedVisitId != null) {
+            if (!visitEligibilityChecker.isArrived(userId, requestedVisitId)) { // 9월 30일 최종: ARRIVED 여부 확인
+                throw new FeedException(ErrorCode.REVIEW_NOT_ALLOWED, "도착한 방문이 없습니다");
+            }
+            return requestedVisitId;
+        }
+
+        return visitEligibilityChecker.findLatestArrivedVisitId(userId, placeId)
+                .orElseThrow(() -> new FeedException(ErrorCode.REVIEW_NOT_ALLOWED, "도착한 방문이 없습니다"));
     }
 }

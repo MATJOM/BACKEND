@@ -57,8 +57,9 @@ class DailyStatsBatchControllerTest {
         mockMvc.perform(post("/api/batch/midnight-reset")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.targetDate").value(expectedDate.toString()))
-                .andExpect(jsonPath("$.processedPlaces").value(10));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.targetDate").value(expectedDate.toString()))
+                .andExpect(jsonPath("$.data.processedPlaces").value(10));
 
         verify(dailyStatsBatchService).runAggregation(eq(expectedDate));
     }
@@ -79,6 +80,6 @@ class DailyStatsBatchControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.targetDate").value("2024-09-25"));
+                .andExpect(jsonPath("$.data.targetDate").value("2024-09-25"));
     }
 }

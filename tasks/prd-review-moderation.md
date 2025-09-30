@@ -4,17 +4,17 @@
 
 ## Task List
 
-- [ ] Review/DTO 최소화
+- [x] Review/DTO 최소화
   - [x] `Review` 엔티티를 `ACTIVE/DELETED` 상태 중심으로 정리하고 불필요 필드(`flagged`, `warningCount`, `lastWarningAt` 등) 제거
   - [x] 리뷰 관련 DTO(Request/Response)와 컨트롤러 응답에서 필수 값(`reviewId`, `placeId`, `visitId`, `text`, `createdAt`)만 남기도록 정리
   - [x] `ReviewRepository` 쿼리 메서드를 실제 사용 중인 핵심 메서드만 남기고 정리
 
-- [ ] Visit 연동 단순 자격 검증
+- [x] Visit 연동 단순 자격 검증
   - [x] `ReviewService.checkReviewEligibility`에서 `VisitRepository`를 사용해 `visitId` 존재, `arrived` 여부만 확인하도록 단순화
   - [x] 자격 미충족 시 던지는 `FeedException` 코드/메시지를 JWT 인증 흐름에 맞게 재검토
   - [x] 동일한 Check 로직을 좋아요 쪽(`DailyLikeService.checkLikeEligibility`)에도 적용 및 재사용 방식 검토
 
-- [ ] 좋아요 플로우 단순화
+- [x] 좋아요 플로우 단순화
   - [x] `DailyLike` 엔티티와 DTO에서 현재 로직에 필요 없는 필드/메서드 제거, 상태 전환(`ACTIVE` ↔ `CANCELLED`)만 유지
   - [x] 좋아요 등록/취소/재등록 서비스 로직을 최소한의 파라미터와 예외 처리만 남기도록 리팩터링
   - [x] `DailyLikeRepository`의 JPQL/네이티브 쿼리를 실제 사용 시나리오에 맞게 정리
@@ -35,16 +35,15 @@
   - [ ] 신고 수 집계와 향후 통계 지표(예: 신고율) 간 연계 가능성을 별도 메모
 
 ## Relevant Files
-- [x] `src/main/java/com/matjom/matjom/feed/dto/assembler/ReviewResponseAssembler.java` — 리뷰 응답에 사용자/장소 이름 포함
-- [x] `src/main/java/com/matjom/matjom/feed/repository/PlaceReadRepository.java` — 리뷰 응답에 사용자/장소 이름 포함
-- [x] `src/main/java/com/matjom/matjom/feed/repository/UserReadRepository.java` — 리뷰 응답에 사용자/장소 이름 포함
+- [x] `src/main/java/com/matjom/matjom/feed/dto/assembler/ReviewResponseAssembler.java` — 리뷰 응답에 작성자 이름만 안전하게 주입
+- [x] `src/main/java/com/matjom/matjom/feed/repository/UserReadRepository.java` — 리뷰 응답에 작성자 이름 조회
 - [x] `src/main/java/com/matjom/matjom/common/config/JpaConfig.java` — 테스트 및 Auditing 설정
 - [x] `src/test/java/com/matjom/matjom/feed/service/DailyLikeServiceIntegrationTest.java` — 테스트 및 Auditing 설정
 - [x] `src/test/java/com/matjom/matjom/feed/service/DailyLikeServiceTest.java` — 테스트 및 Auditing 설정
 - [x] `src/test/java/com/matjom/matjom/feed/service/ReviewServiceIntegrationTest.java` — 테스트 및 Auditing 설정
 - [x] `src/test/java/com/matjom/matjom/feed/service/ReviewServiceTest.java` — 테스트 및 Auditing 설정
 - [x] `src/main/java/com/matjom/matjom/common/security/CustomUserDetails.java` — JWT 인증용 사용자 정보 래퍼
-- [x] `src/main/java/com/matjom/matjom/feed/dto/response/DailyLikeResponseDTO.java` — 좋아요 핵심 구현
+- [x] (삭제) `src/main/java/com/matjom/matjom/feed/dto/response/DailyLikeResponseDTO.java` · `DailyLikeResponseAssembler.java` — ApiResponse.ok()만 사용하도록 정리
 - [x] `src/main/java/com/matjom/matjom/feed/dto/request/DailyLikeCreateRequestDTO.java` — 좋아요 핵심 구현
 - [x] `src/main/java/com/matjom/matjom/feed/entity/likes/LikeStatus.java` — 좋아요 핵심 구현
 - [x] `src/main/java/com/matjom/matjom/feed/repository/VisitReadRepository.java` — 방문 자격 검증 재사용 로직

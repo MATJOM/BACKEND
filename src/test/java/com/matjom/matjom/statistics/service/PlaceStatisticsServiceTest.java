@@ -12,13 +12,14 @@ import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.feed.repository.PlaceReadRepository;
 import com.matjom.matjom.statistics.dto.PlaceStatsResponseDTO;
 import com.matjom.matjom.statistics.dto.PlaceStatsSnapshot;
-import com.matjom.matjom.statistics.dto.StatsDataSource;
 import com.matjom.matjom.statistics.repository.PlaceStatisticsRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class PlaceStatisticsServiceTest {
 
     @BeforeEach
     void setUp() {
-        placeStatisticsService = new PlaceStatisticsService(placeReadRepository, placeStatisticsRepository, fixedClock, 300L);
+        placeStatisticsService = new PlaceStatisticsService(placeReadRepository, placeStatisticsRepository, fixedClock);
     }
 
     @Test
@@ -55,7 +56,11 @@ class PlaceStatisticsServiceTest {
     void fetchPlaceStatsReturnsSnapshot() {
         Long placeId = 10L;
         when(placeReadRepository.findNameById(placeId)).thenReturn(Optional.of("테스트 장소"));
-        PlaceStatsSnapshot snapshot = new PlaceStatsSnapshot(120L, 45L, 8L, 5L);
+        Map<Integer, Long> hourly = new LinkedHashMap<>();
+        hourly.put(11, 8L);
+        hourly.put(12, 5L);
+        hourly.put(13, 3L);
+        PlaceStatsSnapshot snapshot = new PlaceStatsSnapshot(120L, 45L, hourly);
         when(placeStatisticsRepository.fetchSnapshot(eq(placeId), any())).thenReturn(snapshot);
 
         PlaceStatsResponseDTO response = placeStatisticsService.fetchPlaceStats(placeId);
@@ -63,13 +68,15 @@ class PlaceStatisticsServiceTest {
         assertThat(response.getPlaceName()).isEqualTo("테스트 장소");
         assertThat(response.getTotalVisitors()).isEqualTo(120L);
         assertThat(response.getTotalLikes()).isEqualTo(45L);
-        assertThat(response.getArrivals11To12()).isEqualTo(8L);
-        assertThat(response.getArrivals12To13()).isEqualTo(5L);
-        assertThat(response.getCacheTtlSeconds()).isEqualTo(300L);
-        assertThat(response.getDataSource()).isEqualTo(StatsDataSource.DATABASE);
+        assertThat(response.getHourlyArrivals()).hasSize(10);
+        assertThat(response.getHourlyArrivals().get(0).getHour()).isEqualTo(11);
+        assertThat(response.getHourlyArrivals().get(0).getAverageCount()).isEqualTo(8L);
+        assertThat(response.getHourlyArrivals().get(1).getHour()).isEqualTo(12);
+        assertThat(response.getHourlyArrivals().get(1).getAverageCount()).isEqualTo(5L);
+        assertThat(response.getHourlyArrivals().get(2).getHour()).isEqualTo(13);
+        assertThat(response.getHourlyArrivals().get(2).getAverageCount()).isEqualTo(3L);
 
         OffsetDateTime expectedNow = OffsetDateTime.now(fixedClock);
-        assertThat(response.getGeneratedAt()).isEqualTo(expectedNow);
 
         verify(placeStatisticsRepository).fetchSnapshot(eq(placeId), dateCaptor.capture());
         assertThat(dateCaptor.getValue()).isEqualTo(expectedNow.atZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDate());

@@ -4,6 +4,9 @@ import com.matjom.matjom.statistics.dto.PlaceStatsSnapshot;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -24,25 +27,23 @@ public class PlaceStatisticsRepository {
             (SELECT COALESCE(COUNT(*), 0)
              FROM daily_likes dl
              WHERE dl.place_id = :placeId
-               AND dl.status = 'ACTIVE') AS total_likes,
-            (SELECT CAST(
-                    COALESCE(ROUND(COUNT(*)::numeric / %1$d, 0), 0)
-                 AS bigint)
-             FROM visits v_1112
-             WHERE v_1112.place_id = :placeId
-               AND v_1112.arrived_at IS NOT NULL
-               AND DATE(v_1112.arrived_at AT TIME ZONE 'Asia/Seoul') BETWEEN (:targetDate - INTERVAL '%2$d day') AND :targetDate
-               AND EXTRACT(HOUR FROM (v_1112.arrived_at AT TIME ZONE 'Asia/Seoul')) = 11) AS arrivals_11_12,
-            (SELECT CAST(
-                    COALESCE(ROUND(COUNT(*)::numeric / %1$d, 0), 0)
-                 AS bigint)
-             FROM visits v_1213
-             WHERE v_1213.place_id = :placeId
-               AND v_1213.arrived_at IS NOT NULL
-               AND DATE(v_1213.arrived_at AT TIME ZONE 'Asia/Seoul') BETWEEN (:targetDate - INTERVAL '%2$d day') AND :targetDate
-               AND EXTRACT(HOUR FROM (v_1213.arrived_at AT TIME ZONE 'Asia/Seoul')) = 12) AS arrivals_12_13
+               AND dl.status = 'ACTIVE') AS total_likes
         """
-    ).formatted(AVERAGE_WINDOW_DAYS, AVERAGE_WINDOW_OFFSET); // 9월 30일 최종: 특정 시간대 최근 14일 평균
+    ); // 9월 30일 최종: 누적 방문/좋아요 집계 전용
+
+    private static final String HOURLY_AVERAGE_SQL = ("""
+        SELECT hour_key AS hour,
+               CAST(COALESCE(ROUND(COUNT(v_hour.id)::numeric / %1$d, 0), 0) AS bigint) AS average_arrivals
+        FROM generate_series(11, 20) AS hour_key
+        LEFT JOIN visits v_hour
+          ON v_hour.place_id = :placeId
+         AND v_hour.arrived_at IS NOT NULL
+         AND DATE(v_hour.arrived_at AT TIME ZONE 'Asia/Seoul') BETWEEN (:targetDate - INTERVAL '%2$d day') AND :targetDate
+         AND EXTRACT(HOUR FROM (v_hour.arrived_at AT TIME ZONE 'Asia/Seoul')) = hour_key
+        GROUP BY hour_key
+        ORDER BY hour_key
+        """
+    ).formatted(AVERAGE_WINDOW_DAYS, AVERAGE_WINDOW_OFFSET); // 9월 30일 개편: 11~20시 평균 도착 인원 일평균
 
     // `/stats` 엔드포인트에 제공할 집계 스냅샷 쿼리를 실행한다.
     public PlaceStatsSnapshot fetchSnapshot(Long placeId, LocalDate targetDate) {
@@ -53,9 +54,31 @@ public class PlaceStatisticsRepository {
 
         long totalVisitors = ((Number) row[0]).longValue();
         long totalLikes = ((Number) row[1]).longValue();
-        long arrivals11To12 = ((Number) row[2]).longValue();
-        long arrivals12To13 = ((Number) row[3]).longValue();
+        Map<Integer, Long> hourlyAverages = fetchHourlyAverages(placeId, targetDate);
 
-        return new PlaceStatsSnapshot(totalVisitors, totalLikes, arrivals11To12, arrivals12To13);
+        return new PlaceStatsSnapshot(totalVisitors, totalLikes, hourlyAverages);
+    }
+
+    private Map<Integer, Long> fetchHourlyAverages(Long placeId, LocalDate targetDate) {
+        List<Object[]> rows = entityManager.createNativeQuery(HOURLY_AVERAGE_SQL)
+                .setParameter("placeId", placeId)
+                .setParameter("targetDate", targetDate)
+                .getResultList();
+
+        Map<Integer, Long> hourly = new LinkedHashMap<>();
+        for (int hour = 11; hour <= 20; hour++) {
+            hourly.put(hour, 0L);
+        }
+
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2) {
+                continue;
+            }
+            Integer hour = ((Number) row[0]).intValue();
+            Number average = (Number) row[1];
+            hourly.put(hour, average == null ? 0L : average.longValue());
+        }
+
+        return hourly;
     }
 }

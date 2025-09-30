@@ -9,12 +9,11 @@ import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.service.ReviewService;
 import com.matjom.matjom.placefacade.dto.PlaceDetailResponseDTO;
 import com.matjom.matjom.statistics.dto.PlaceStatsResponseDTO;
-import com.matjom.matjom.statistics.dto.StatsDataSource;
-import com.matjom.matjom.statistics.service.PlaceStatisticsQueryService;
+import com.matjom.matjom.statistics.service.PlaceStatisticsService;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PlaceDetailFacadeServiceTest {
 
     @Mock
-    private PlaceStatisticsQueryService placeStatisticsQueryService;
+    private PlaceStatisticsService placeStatisticsService;
 
     @Mock
     private ReviewService reviewService;
@@ -34,14 +33,14 @@ class PlaceDetailFacadeServiceTest {
 
     @BeforeEach
     void setUp() {
-        placeDetailFacadeService = new PlaceDetailFacadeService(placeStatisticsQueryService, reviewService);
+        placeDetailFacadeService = new PlaceDetailFacadeService(placeStatisticsService, reviewService);
     }
 
     @Test
     // 기본 리뷰 제한값(5개)이 적용되는지와 총 리뷰 수가 유지되는지를 검증한다.
     void getPlaceDetailAppliesDefaultLimit() {
         PlaceStatsResponseDTO stats = sampleStats();
-        when(placeStatisticsQueryService.getPlaceStats(1L)).thenReturn(stats);
+        when(placeStatisticsService.fetchPlaceStats(1L)).thenReturn(stats);
 
         List<ReviewResponseDTO> reviews = new ArrayList<>();
         for (int i = 0; i < 7; i++) {
@@ -54,7 +53,7 @@ class PlaceDetailFacadeServiceTest {
         assertThat(response.getStatistics()).isEqualTo(stats);
         assertThat(response.getTotalReviewCount()).isEqualTo(7);
         assertThat(response.getReviews()).hasSize(5);
-        verify(placeStatisticsQueryService).getPlaceStats(1L);
+        verify(placeStatisticsService).fetchPlaceStats(1L);
         verify(reviewService).getPlaceReviews(1L);
     }
 
@@ -62,7 +61,7 @@ class PlaceDetailFacadeServiceTest {
     // reviewLimit 파라미터로 0 이하 값을 주면 모든 리뷰를 반환하도록 동작하는지 확인한다.
     void getPlaceDetailWithoutLimitReturnsAll() {
         PlaceStatsResponseDTO stats = sampleStats();
-        when(placeStatisticsQueryService.getPlaceStats(anyLong())).thenReturn(stats);
+        when(placeStatisticsService.fetchPlaceStats(anyLong())).thenReturn(stats);
 
         List<ReviewResponseDTO> reviews = List.of(sampleReview(1), sampleReview(2));
         when(reviewService.getPlaceReviews(anyLong())).thenReturn(reviews);
@@ -78,19 +77,26 @@ class PlaceDetailFacadeServiceTest {
                 .placeName("테스트 장소")
                 .totalVisitors(120)
                 .totalLikes(80)
-                .arrivals11To12(10)
-                .arrivals12To13(12)
-                .generatedAt(OffsetDateTime.now())
-                .cacheTtlSeconds(300)
-                .dataSource(StatsDataSource.DATABASE)
+                .hourlyArrivals(sampleHourly())
                 .build();
+    }
+
+    private List<PlaceStatsResponseDTO.HourlyAverage> sampleHourly() {
+        List<PlaceStatsResponseDTO.HourlyAverage> hourly = new LinkedList<>();
+        for (int hour = 11; hour <= 20; hour++) {
+            long count = switch (hour) {
+                case 11 -> 10L;
+                case 12 -> 12L;
+                default -> 5L;
+            };
+            hourly.add(new PlaceStatsResponseDTO.HourlyAverage(hour, count));
+        }
+        return hourly;
     }
 
     private ReviewResponseDTO sampleReview(int suffix) {
         return ReviewResponseDTO.builder()
-                .reviewId(UUID.randomUUID())
                 .reviewerName("사용자" + suffix)
-                .placeName("테스트 장소")
                 .text("리뷰 내용" + suffix)
                 .createdAt(OffsetDateTime.now())
                 .build();

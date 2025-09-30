@@ -3,15 +3,20 @@ package com.matjom.matjom.feed.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.matjom.matjom.feed.dto.assembler.ReviewResponseAssembler;
 import com.matjom.matjom.feed.dto.request.ReviewCreateRequestDTO;
+import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.repository.ReviewRepository;
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.moderation.profanity.ProfanityFilter;
+import com.matjom.matjom.feed.entity.review.Review;
+import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,5 +79,38 @@ class ReviewServiceTest {
                 () -> reviewService.createReview(USER_ID, request));
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REVIEW_ALREADY_EXISTS);
+    }
+
+    @Test
+    @DisplayName("visitId 없이 요청하면 최신 ARRIVED 방문을 사용한다")
+    // 목적: 프런트가 visitId를 생략했을 때 자동 매칭이 동작하는지 검증
+    // 상황: 최신 ARRIVED 방문 ID를 리포지토리가 반환하도록 모킹하고 저장 결과를 검증
+    // 기대: 저장이 정상 수행되고 assembler가 호출된다
+    void createReviewResolvesLatestVisitWhenNotProvided() {
+        given(visitEligibilityChecker.findLatestArrivedVisitId(USER_ID, PLACE_ID))
+                .willReturn(Optional.of(VISIT_ID));
+        given(reviewRepository.existsByVisitId(VISIT_ID)).willReturn(false);
+        Review persisted = Review.builder()
+                .id(UUID.randomUUID())
+                .userId(USER_ID)
+                .placeId(PLACE_ID)
+                .visitId(VISIT_ID)
+                .text("맛있어요")
+                .build();
+        given(reviewRepository.save(any(Review.class))).willReturn(persisted);
+        given(reviewResponseAssembler.toDto(persisted)).willReturn(
+                ReviewResponseDTO.builder()
+                        .reviewerName("사용자")
+                        .text("맛있어요")
+                        .createdAt(OffsetDateTime.now())
+                        .build()
+        );
+
+        ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, null, "맛있어요");
+
+        ReviewResponseDTO response = reviewService.createReview(USER_ID, request);
+
+        assertThat(response.getText()).isEqualTo("맛있어요");
+        verify(reviewRepository).save(any(Review.class));
     }
 }
