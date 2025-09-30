@@ -6,44 +6,52 @@ import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Base64;
+import java.util.Date;
+import java.util.UUID;
+import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Date;
-
 @Component
 public class JwtTokenProvider {
-    @Value("${jwt.secret:MATJOM_DEFAULT_JWT_SECRET_KEY_32B__CHANGE_ME_1234567890}")
+
+    @Value("${jwt.secret-base64:cCmyrSYHdZ/ApKxvA5yef5C30xMNhv1B2jGqEo4cY7Q=}")
     private String secretKey;
 
     private static final long ACCESS_TOKEN_VALIDITY = 15 * 60 * 1000L;
     private static final long REFRESH_TOKEN_VALIDITY = 14 * 24 * 60 * 60 * 1000L;
+    private static final String CLAIM_TOKEN_TYPE = "type";
+    private static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    private static final String TOKEN_TYPE_REFRESH = "REFRESH";
+
     private SecretKey key;
 
     @PostConstruct
     protected void init() {
-        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = Base64.getDecoder().decode(secretKey);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String createAccessToken(User user) {
-        return createToken(user, ACCESS_TOKEN_VALIDITY);
+        return createToken(user, ACCESS_TOKEN_VALIDITY, TOKEN_TYPE_ACCESS);
     }
 
     public String createRefreshToken(User user) {
-        return createToken(user, REFRESH_TOKEN_VALIDITY);
+        return createToken(user, REFRESH_TOKEN_VALIDITY, TOKEN_TYPE_REFRESH);
     }
 
-    private String createToken(User user, long validityInMillis) {
+    private String createToken(User user, long validityInMillis, String tokenType) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + validityInMillis);
 
         return Jwts.builder()
-                .subject(user.getEmail())
+                .subject(user.getId().toString())
+                .claim("email", user.getEmail())
                 .claim("name", user.getName())
-                .claim("provider", user.getProvider().name())
+                .claim(CLAIM_TOKEN_TYPE, tokenType)
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(key)
@@ -85,11 +93,15 @@ public class JwtTokenProvider {
         return remaining > 0 ? Duration.ofMillis(remaining) : Duration.ZERO;
     }
 
-    public String getEmailFromToken(String token) {
-        return getClaimsEvenIfExpired(token).getSubject();
+    public UUID getUserId(String token) {
+        return UUID.fromString(getClaimsEvenIfExpired(token).getSubject());
     }
 
-    public String getProviderFromToken(String token) {
-        return getClaimsEvenIfExpired(token).get("provider", String.class);
+    public String getEmailFromToken(String token) {
+        return getClaimsEvenIfExpired(token).get("email", String.class);
+    }
+
+    public String getTokenType(String token) {
+        return getClaimsEvenIfExpired(token).get(CLAIM_TOKEN_TYPE, String.class);
     }
 }

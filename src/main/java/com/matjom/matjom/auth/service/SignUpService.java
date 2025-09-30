@@ -28,7 +28,7 @@ public class SignUpService {
         User user;
         if (optionalUser.isPresent()) {
             User existing = optionalUser.get();
-            if (existing.getDeletedAt() == null) {
+            if (!existing.isDeleted()) {
                 throw new AuthException(ErrorCode.EMAIL_ALREADY_EXISTS);
             }
             existing.restore();

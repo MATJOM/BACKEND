@@ -1,21 +1,24 @@
 package com.matjom.matjom.common.security;
 
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
 
+@Getter
 public class CustomUserDetails implements UserDetails {
 
+    private final UUID userId;
     private final String email;    // 로그인 식별자
     private final String name;     // 사용자 이름
-    private final String provider; // LOCAL / GOOGLE
 
-    public CustomUserDetails(String email, String name, String provider) {
+    public CustomUserDetails(UUID userId, String email, String name) {
+        this.userId = userId;
         this.email = email;
         this.name = name;
-        this.provider = provider;
     }
 
     // 권한: ROLE_USER 고정
@@ -29,16 +32,10 @@ public class CustomUserDetails implements UserDetails {
         return null;
     }
 
-    // username은 email로 사용
     @Override
     public String getUsername() {
-        return email;
+        return name;
     }
-
-    // getter
-    public String getEmail() { return email; }
-    public String getName() { return name; }
-    public String getProvider() { return provider; }
 
     // 계정 상태 관련 메서드 (모두 true로 설정)
     @Override public boolean isAccountNonExpired() { return true; }

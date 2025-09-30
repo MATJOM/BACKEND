@@ -8,15 +8,18 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ReissueResponse {
-    String name;
-    String email;
-    AuthProvider provider;
+    private String email;
+    private String name;
+    private AuthProvider provider;
+    private String refreshToken;
 
-    public static ReissueResponse from(User user){
+    public static ReissueResponse from(User user, String refreshToken) {
         return ReissueResponse.builder()
-                .name(user.getName())
                 .email(user.getEmail())
+                .name(user.getName())
                 .provider(user.getProvider())
+                .refreshToken(refreshToken)
                 .build();
     }
 }
+

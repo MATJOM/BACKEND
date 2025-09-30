@@ -18,22 +18,22 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class LoginService {
+
+    private static final String TOO_MANY_ATTEMPTS_MESSAGE = "5회 연속 로그인에 실패했습니다. %d초 후 다시 시도해주세요.";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final LoginRateLimiter loginRateLimiter;
-    private final CaptchaService captchaService;
 
     public LoginResult login(LoginRequest request) {
-        User user = authenticate(request);
-        return issueTokens(user);
-    }
-
-    private User authenticate(LoginRequest request) {
         String email = request.getEmail();
-        enforceCaptchaIfRequired(email, request.getCaptchaToken());
 
+        // 레이트 리미터가 차단 중이면 남은 대기시간을 안내하고 즉시 종료한다.
+        if (loginRateLimiter.isLimitReached(email)) {
+            throw tooManyAttempts(email);
+        }
         User user = userRepository.findByEmailAndProvider(email, AuthProvider.LOCAL)
                 .orElseThrow(() -> invalidCredentials(email));
 
@@ -44,10 +44,10 @@ public class LoginService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw invalidCredentials(email);
         }
-
-        return user;
+        return issueTokens(user);
     }
 
+    //토큰 발급 메서드
     public LoginResult issueTokens(User user) {
         String accessToken = jwtTokenProvider.createAccessToken(user);
         String refreshToken = jwtTokenProvider.createRefreshToken(user);
@@ -58,20 +58,23 @@ public class LoginService {
         return LoginResult.from(accessToken, response);
     }
 
+
     private AuthException invalidCredentials(String email) {
+
+        //해당 이메일의 실패 횟수 redis에 누적
         loginRateLimiter.recordFailure(email);
-        if (loginRateLimiter.isCaptchaRequired(email)) {
-            return new AuthException(ErrorCode.CAPTCHA_REQUIRED);
+
+        //5회 이상 누적 시 제한 메시지 출력
+        if (loginRateLimiter.isLimitReached(email)) {
+            return tooManyAttempts(email);
         }
         return new AuthException(ErrorCode.INVALID_CREDENTIALS);
     }
 
-    private void enforceCaptchaIfRequired(String email, String captchaToken) {
-        if (!loginRateLimiter.isCaptchaRequired(email)) {
-            return;
-        }
-        if (!captchaService.verify(captchaToken)) {
-            throw new AuthException(ErrorCode.CAPTCHA_REQUIRED);
-        }
+    // 사용자에게 실제 TTL 을 알려 재시도 가능 시점을 명확히 안내한다.
+    private AuthException tooManyAttempts(String email) {
+        long remainingSeconds = loginRateLimiter.getRemainingSeconds(email);
+        String message = String.format(TOO_MANY_ATTEMPTS_MESSAGE, remainingSeconds);
+        return new AuthException(ErrorCode.LOGIN_TOO_MANY_ATTEMPTS, message);
     }
 }

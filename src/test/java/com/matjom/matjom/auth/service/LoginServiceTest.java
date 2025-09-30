@@ -2,8 +2,6 @@ package com.matjom.matjom.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -57,9 +55,6 @@ class LoginServiceTest {
     @Mock
     private LoginRateLimiter loginRateLimiter;
 
-    @Mock
-    private CaptchaService captchaService;
-
     @InjectMocks
     private LoginService loginService;
 
@@ -71,10 +66,9 @@ class LoginServiceTest {
     }
 
     @Test
-    void login_success_withoutCaptcha() {
-        LoginRequest request = createRequest(null);
-
-        when(loginRateLimiter.isCaptchaRequired(EMAIL)).thenReturn(false);
+    void login_success() {
+        LoginRequest request = createRequest();
+        when(loginRateLimiter.isLimitReached(EMAIL)).thenReturn(false);
         when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
         when(jwtTokenProvider.createAccessToken(activeUser)).thenReturn(ACCESS_TOKEN);
@@ -87,87 +81,111 @@ class LoginServiceTest {
         assertThat(result.getResponse().getEmail()).isEqualTo(EMAIL);
         assertThat(result.getResponse().getName()).isEqualTo(NAME);
         assertThat(result.getResponse().getProvider()).isEqualTo(AuthProvider.LOCAL);
-
+        verify(passwordEncoder).matches(RAW_PASSWORD, ENCODED_PASSWORD);
         verify(refreshTokenRepository).save(USER_ID, REFRESH_TOKEN);
         verify(loginRateLimiter).reset(EMAIL);
-        verify(loginRateLimiter, times(1)).isCaptchaRequired(EMAIL);
-        verify(captchaService, never()).verify(any());
+        verify(loginRateLimiter).isLimitReached(EMAIL);
     }
 
     @Test
-    void login_success_withCaptchaVerification() {
-        String captchaToken = "captcha-token";
-        LoginRequest request = createRequest(captchaToken);
+    void login_blocked_whenLimitAlreadyReached() {
+        LoginRequest request = createRequest();
+        when(loginRateLimiter.isLimitReached(EMAIL)).thenReturn(true);
+        when(loginRateLimiter.getRemainingSeconds(EMAIL)).thenReturn(180L);
 
-        when(loginRateLimiter.isCaptchaRequired(EMAIL)).thenReturn(true);
-        when(captchaService.verify(captchaToken)).thenReturn(true);
-        when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(Optional.of(activeUser));
-        when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);
-        when(jwtTokenProvider.createAccessToken(activeUser)).thenReturn(ACCESS_TOKEN);
-        when(jwtTokenProvider.createRefreshToken(activeUser)).thenReturn(REFRESH_TOKEN);
+        AuthException exception = assertThrows(AuthException.class, () -> loginService.login(request));
 
-        LoginResult result = loginService.login(request);
-
-        assertThat(result.getAccessToken()).isEqualTo(ACCESS_TOKEN);
-        verify(captchaService).verify(captchaToken);
-        verify(loginRateLimiter).reset(EMAIL);
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.LOGIN_TOO_MANY_ATTEMPTS);
+        assertThat(exception.getMessage()).contains("180");
+        verify(loginRateLimiter).isLimitReached(EMAIL);
+        verify(loginRateLimiter).getRemainingSeconds(EMAIL);
+        verifyNoInteractions(userRepository);
+        verify(loginRateLimiter, never()).recordFailure(EMAIL);
+        verify(loginRateLimiter, never()).reset(EMAIL);
+        verifyNoInteractions(passwordEncoder);
+        verifyNoInteractions(jwtTokenProvider);
+        verifyNoInteractions(refreshTokenRepository);
     }
 
     @Test
-    void login_invalidPassword_withoutCaptchaRequirement() {
-        LoginRequest request = createRequest(null);
+    void login_userNotFound_recordsFailure() {
+        LoginRequest request = createRequest();
+        when(loginRateLimiter.isLimitReached(EMAIL)).thenReturn(false, false);
+        when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(Optional.empty());
 
-        when(loginRateLimiter.isCaptchaRequired(EMAIL)).thenReturn(false);
+        AuthException exception = assertThrows(AuthException.class, () -> loginService.login(request));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS);
+        verify(loginRateLimiter).recordFailure(EMAIL);
+        verify(loginRateLimiter, times(2)).isLimitReached(EMAIL);
+        verify(loginRateLimiter, never()).getRemainingSeconds(EMAIL);
+        verify(loginRateLimiter, never()).reset(EMAIL);
+        verifyNoInteractions(passwordEncoder);
+        verifyNoInteractions(jwtTokenProvider);
+        verifyNoInteractions(refreshTokenRepository);
+    }
+
+    @Test
+    void login_deletedUser_recordsFailure() {
+        LoginRequest request = createRequest();
+        User deletedUser = createUser(true);
+        when(loginRateLimiter.isLimitReached(EMAIL)).thenReturn(false, false);
+        when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(Optional.of(deletedUser));
+
+        AuthException exception = assertThrows(AuthException.class, () -> loginService.login(request));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS);
+        verify(loginRateLimiter).recordFailure(EMAIL);
+        verify(loginRateLimiter, times(2)).isLimitReached(EMAIL);
+        verify(loginRateLimiter, never()).getRemainingSeconds(EMAIL);
+        verify(loginRateLimiter, never()).reset(EMAIL);
+        verifyNoInteractions(passwordEncoder);
+        verifyNoInteractions(jwtTokenProvider);
+        verifyNoInteractions(refreshTokenRepository);
+    }
+
+    @Test
+    void login_invalidPassword_recordsFailure() {
+        LoginRequest request = createRequest();
+        when(loginRateLimiter.isLimitReached(EMAIL)).thenReturn(false, false);
         when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(false);
 
         AuthException exception = assertThrows(AuthException.class, () -> loginService.login(request));
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS);
-        verify(loginRateLimiter, times(2)).isCaptchaRequired(EMAIL);
+        verify(passwordEncoder).matches(RAW_PASSWORD, ENCODED_PASSWORD);
         verify(loginRateLimiter).recordFailure(EMAIL);
-        verifyNoInteractions(refreshTokenRepository);
+        verify(loginRateLimiter, times(2)).isLimitReached(EMAIL);
+        verify(loginRateLimiter, never()).getRemainingSeconds(EMAIL);
         verify(loginRateLimiter, never()).reset(EMAIL);
+        verifyNoInteractions(refreshTokenRepository);
     }
 
     @Test
-    void login_invalidPassword_triggersCaptchaRequirementAfterFailures() {
-        LoginRequest request = createRequest(null);
-
-        when(loginRateLimiter.isCaptchaRequired(EMAIL)).thenReturn(false, true);
+    void login_invalidPassword_triggersLimitExceededResponse() {
+        LoginRequest request = createRequest();
+        when(loginRateLimiter.isLimitReached(EMAIL)).thenReturn(false, true);
+        when(loginRateLimiter.getRemainingSeconds(EMAIL)).thenReturn(120L);
         when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(Optional.of(activeUser));
         when(passwordEncoder.matches(RAW_PASSWORD, ENCODED_PASSWORD)).thenReturn(false);
 
         AuthException exception = assertThrows(AuthException.class, () -> loginService.login(request));
 
-        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CAPTCHA_REQUIRED);
-        verify(loginRateLimiter, times(2)).isCaptchaRequired(EMAIL);
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.LOGIN_TOO_MANY_ATTEMPTS);
+        assertThat(exception.getMessage()).contains("120");
+        verify(passwordEncoder).matches(RAW_PASSWORD, ENCODED_PASSWORD);
         verify(loginRateLimiter).recordFailure(EMAIL);
-        verify(captchaService, never()).verify(any());
+        verify(loginRateLimiter, times(2)).isLimitReached(EMAIL);
+        verify(loginRateLimiter).getRemainingSeconds(EMAIL);
+        verify(loginRateLimiter, never()).reset(EMAIL);
         verifyNoInteractions(refreshTokenRepository);
     }
 
-    @Test
-    void login_requiresCaptcha_butVerificationFails() {
-        LoginRequest request = createRequest(null);
-
-        when(loginRateLimiter.isCaptchaRequired(EMAIL)).thenReturn(true);
-        when(captchaService.verify(null)).thenReturn(false);
-
-        AuthException exception = assertThrows(AuthException.class, () -> loginService.login(request));
-
-        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CAPTCHA_REQUIRED);
-        verify(loginRateLimiter, times(1)).isCaptchaRequired(EMAIL);
-        verify(captchaService).verify(null);
-        verifyNoInteractions(userRepository);
-        verifyNoInteractions(refreshTokenRepository);
-    }
-
-    private LoginRequest createRequest(String captchaToken) {
+    private LoginRequest createRequest() {
         LoginRequest request = new LoginRequest();
         request.setEmail(EMAIL);
         request.setPassword(RAW_PASSWORD);
-        request.setCaptchaToken(captchaToken);
         return request;
     }
 
@@ -190,4 +208,3 @@ class LoginServiceTest {
         }
     }
 }
-

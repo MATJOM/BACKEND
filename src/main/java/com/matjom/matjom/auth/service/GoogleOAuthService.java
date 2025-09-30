@@ -1,10 +1,9 @@
 package com.matjom.matjom.auth.service;
 
 import com.matjom.matjom.auth.dto.GoogleOAuthRequest;
-import com.matjom.matjom.auth.dto.LoginResponse;
 import com.matjom.matjom.auth.dto.LoginResult;
-import com.matjom.matjom.common.security.oauth.GoogleOAuthClient;
-import com.matjom.matjom.common.security.oauth.GoogleOAuthProfile;
+import com.matjom.matjom.auth.oauth.GoogleOAuthClient;
+import com.matjom.matjom.auth.oauth.GoogleOAuthProfile;
 import com.matjom.matjom.user.entity.AuthProvider;
 import com.matjom.matjom.user.entity.User;
 import com.matjom.matjom.user.repository.UserRepository;

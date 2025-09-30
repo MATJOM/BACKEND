@@ -9,6 +9,8 @@ import com.matjom.matjom.user.entity.AuthProvider;
 import com.matjom.matjom.user.entity.User;
 import com.matjom.matjom.user.repository.UserRepository;
 import java.time.Duration;
+import java.util.UUID;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,17 +24,13 @@ public class LogoutService {
     private final TokenBlacklistRepository tokenBlacklistRepository;
 
     public void logout(String accessToken) {
-        String email = jwtTokenProvider.getEmailFromToken(accessToken);
-        String provider = jwtTokenProvider.getProviderFromToken(accessToken);
+        UUID userId = jwtTokenProvider.getUserId(accessToken);
 
-        User user = userRepository.findByEmailAndProvider(email, AuthProvider.valueOf(provider))
-                .orElseThrow(() -> new AuthException(ErrorCode.INVALID_CREDENTIALS));
-
-        logoutHelper(user, accessToken);
+        logoutHelper(userId, accessToken);
     }
 
-    public void logoutHelper(User user, String accessToken) {
-        refreshTokenRepository.delete(user.getId());
+    public void logoutHelper(UUID userId, String accessToken) {
+        refreshTokenRepository.delete(userId);
 
         Duration ttl = jwtTokenProvider.getRemainingValidity(accessToken);
         tokenBlacklistRepository.save(accessToken, ttl);
