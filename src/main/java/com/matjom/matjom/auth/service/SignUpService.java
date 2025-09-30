@@ -7,7 +7,6 @@ import com.matjom.matjom.common.exception.message.ErrorCode;
 import com.matjom.matjom.user.entity.AuthProvider;
 import com.matjom.matjom.user.entity.User;
 import com.matjom.matjom.user.repository.UserRepository;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,23 +21,13 @@ public class SignUpService {
 
     @Transactional
     public LoginResult signUp(SignUpRequest request) {
-        Optional<User> optionalUser = userRepository.findByEmailAndProvider(request.getEmail(), AuthProvider.LOCAL);
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-
-        User user;
-        if (optionalUser.isPresent()) {
-            User existing = optionalUser.get();
-            if (!existing.isDeleted()) {
-                throw new AuthException(ErrorCode.EMAIL_ALREADY_EXISTS);
-            }
-            existing.restore();
-            existing.changePassword(encodedPassword);
-            user = existing;
-            userRepository.save(user);
-        } else {
-            user = User.createLocalUser(request.getEmail(), request.getName(), encodedPassword);
-            userRepository.save(user);
+        if (userRepository.findByEmailAndProvider(request.getEmail(), AuthProvider.LOCAL).isPresent()) {
+            throw new AuthException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
+
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+        User user = User.createLocalUser(request.getEmail(), request.getName(), encodedPassword);
+        userRepository.save(user);
 
         return loginService.issueTokens(user);
     }

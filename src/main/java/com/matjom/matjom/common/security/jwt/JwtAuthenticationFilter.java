@@ -35,7 +35,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UUID userId = jwtTokenProvider.getUserId(token);
 
             userRepository.findById(userId)
-                    .filter(user -> !user.isDeleted())
                     .ifPresent(user -> authenticate(request, user));
         }
 

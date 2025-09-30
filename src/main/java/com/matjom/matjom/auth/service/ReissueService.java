@@ -1,7 +1,7 @@
 package com.matjom.matjom.auth.service;
 
-import com.matjom.matjom.auth.dto.ReissueResponse;
-import com.matjom.matjom.auth.dto.ReissueResult;
+import com.matjom.matjom.auth.dto.LoginResponse;
+import com.matjom.matjom.auth.dto.LoginResult;
 import com.matjom.matjom.auth.repository.RefreshTokenRepository;
 import com.matjom.matjom.auth.repository.TokenBlacklistRepository;
 import com.matjom.matjom.common.exception.base.AuthException;
@@ -24,7 +24,7 @@ public class ReissueService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenBlacklistRepository tokenBlacklistRepository;
 
-    public ReissueResult reissue(String accessToken, String refreshToken) {
+    public LoginResult reissue(String accessToken, String refreshToken) {
         UUID userId = jwtTokenProvider.getUserId(accessToken);
 
         if (tokenBlacklistRepository.exists(accessToken)) {
@@ -51,7 +51,8 @@ public class ReissueService {
         refreshTokenRepository.save(user.getId(), newRefreshToken);
         tokenBlacklistRepository.save(accessToken, jwtTokenProvider.getRemainingValidity(accessToken));
 
-        return ReissueResult.from(newAccessToken, ReissueResponse.from(user, newRefreshToken));
+        LoginResponse response = LoginResponse.from(user);
+        return LoginResult.from(newAccessToken, newRefreshToken, response);
     }
 }
 

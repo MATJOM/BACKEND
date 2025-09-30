@@ -24,18 +24,9 @@ public class GoogleOAuthService {
         GoogleOAuthProfile profile = googleOAuthClient.verify(request.getIdToken());
 
         User user = userRepository.findByEmailAndProvider(profile.getEmail(), AuthProvider.GOOGLE)
-                .map(existing -> restoreIfNeeded(existing, profile))
                 .orElseGet(() -> register(profile));
 
         return loginService.issueTokens(user);
-    }
-
-    private User restoreIfNeeded(User user, GoogleOAuthProfile profile) {
-        if (user.isDeleted()) {
-            user.restore();
-        }
-        user.changeName(profile.getName());
-        return userRepository.save(user);
     }
 
     private User register(GoogleOAuthProfile profile) {

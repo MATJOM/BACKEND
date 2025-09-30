@@ -1,6 +1,7 @@
 package com.matjom.matjom.user.controller;
 
 import com.matjom.matjom.user.dto.ChangePasswordRequest;
+import com.matjom.matjom.user.dto.WithdrawRequest;
 import com.matjom.matjom.user.service.ChangePasswordService;
 import com.matjom.matjom.user.service.WithdrawService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,11 +26,12 @@ public class UserController {
     private final ChangePasswordService changePasswordService;
 
     @PatchMapping("/withdraw")
-    @Operation(summary = "회원 탈퇴", description = "현재 로그인한 사용자의 계정을 탈퇴 처리한다.",
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인한 사용자의 계정을 삭제한다.",
             security = @SecurityRequirement(name = "bearerAuth"))
-    public void withdraw(@RequestHeader(HttpHeaders.AUTHORIZATION) String header) {
+    public void withdraw(@RequestHeader(HttpHeaders.AUTHORIZATION) String header,
+                         @Valid @RequestBody WithdrawRequest request) {
         String accessToken = header.replaceFirst(BEARER_PREFIX, "");
-        withdrawService.withdraw(accessToken);
+        withdrawService.withdraw(accessToken, request);
     }
 
     @PatchMapping("/password")

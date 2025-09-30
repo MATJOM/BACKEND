@@ -29,12 +29,8 @@ public class ChangePasswordService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthException(ErrorCode.INVALID_CREDENTIALS));
 
-        if (user.isDeleted()) {
-            throw new AuthException(ErrorCode.USER_INACTIVE);
-        }
-
         if (!user.isLocalAccount()) {
-            throw new AuthException(ErrorCode.INVALID_CREDENTIALS);
+            throw new AuthException(ErrorCode.OAUTH_PASSWORD_CHANGE_NOT_ALLOWED);
         }
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
