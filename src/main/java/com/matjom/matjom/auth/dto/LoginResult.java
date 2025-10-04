@@ -13,7 +13,4 @@ public class LoginResult {
     public static LoginResult from(String accessToken, LoginResponse response) {
         return LoginResult.builder()
                 .accessToken(accessToken)
-                .response(response)
-                .build();
-    }
 }

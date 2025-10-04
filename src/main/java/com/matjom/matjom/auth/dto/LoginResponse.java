@@ -15,6 +15,4 @@ public class LoginResponse {
         return LoginResponse.builder()
                 .name(user.getName())
                 .refreshToken(refreshToken)
-                .build();
-    }
 }

@@ -27,34 +27,34 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @ExtendWith(MockitoExtension.class)
 class SignUpServiceTest {
 
-    private static final String EMAIL = "user@example.com";                           // ?�스?�용 ?�메??
-    private static final String NAME = "User";                                        // ?�스?�용 ?�름.
-    private static final String PASSWORD = "password123";                             // ?�력 비�?번호.
-    private static final String ENCODED_PASSWORD = "encoded-password";                // ?�호?�된 비�?번호.
+    private static final String EMAIL = "user@example.com";                           // 테스트용 이메일.
+    private static final String NAME = "User";                                        // 테스트용 이름.
+    private static final String PASSWORD = "password123";                             // 입력 비밀번호.
+    private static final String ENCODED_PASSWORD = "encoded-password";                // 암호화된 비밀번호.
 
     @Mock
-    private UserRepository userRepository;                                             // ?�용???�?�소 모킹.
+    private UserRepository userRepository;                                             // 사용자 저장소 모킹.
 
     @Mock
-    private PasswordEncoder passwordEncoder;                                           // 비�?번호 ?�코??모킹.
+    private PasswordEncoder passwordEncoder;                                           // 비밀번호 인코더 모킹.
 
     @Mock
-    private LoginService loginService;                                                 // 로그???�비??모킹.
+    private LoginService loginService;                                                 // 로그인 서비스 모킹.
 
     @InjectMocks
-    private SignUpService signUpService;                                               // ?�스???�???�비??
+    private SignUpService signUpService;                                               // 테스트 대상 서비스.
 
-    private SignUpRequest request;                                                     // ?�원가???�청 DTO.
+    private SignUpRequest request;                                                     // 회원가입 요청 DTO.
 
     @BeforeEach
     void setUp() {
-        request = new SignUpRequest();                                                 // ?�스?�에 ?�용???�청???�성?�다.
+        request = new SignUpRequest();                                                 // 테스트에 사용할 요청을 생성한다.
         request.setEmail(EMAIL);
         request.setPassword(PASSWORD);
         request.setName(NAME);
     }
 
-    // ?�규 ?�원?�면 계정???�성?�고 ?�큰??발급?�다.
+    // 신규 회원이면 계정을 생성하고 토큰을 발급한다.
     @Test
     void signUp_createsLocalUser_andIssuesTokens() {
         // Given
@@ -74,23 +74,23 @@ class SignUpServiceTest {
         LoginResult result = signUpService.signUp(request);
 
         // Then
-        assertThat(result.getAccessToken()).isEqualTo("access-token");                 // ?�세???�큰??그�?�?반환?�다.
-        assertThat(result.getResponse().getRefreshToken()).isEqualTo("refresh-token");               // 리프?�시 ?�큰???�께 반환?�다.
-        assertThat(result.getResponse().getName()).isEqualTo(NAME);                     // ?�답??가?�자가 ?�시?�다.
+        assertThat(result.getAccessToken()).isEqualTo("access-token");                  // 액세스 토큰이 그대로 반환된다.
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo("refresh-token");  // 리프레시 토큰이 함께 반환된다.
+        assertThat(result.getResponse().getName()).isEqualTo(NAME);                     // 응답에 가입자가 표시된다.
 
-        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);              // ?�?�된 ?�용???�보�?검증한??
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);              // 저장된 사용자 정보를 검증한다.
         verify(userRepository).save(captor.capture());
         User saved = captor.getValue();
-        assertThat(saved.getEmail()).isEqualTo(EMAIL);                                  // ?�?�된 ?�메?�이 ?�치?�다.
-        assertThat(saved.getName()).isEqualTo(NAME);                                    // ?�?�된 ?�름???�치?�다.
-        assertThat(saved.getPassword()).isEqualTo(ENCODED_PASSWORD);                    // 비�?번호가 ?�호?�된 값으�??�?�된??
-        assertThat(saved.getProvider()).isEqualTo(AuthProvider.LOCAL);                  // 공급?��? LOCAL �?지?�된??
+        assertThat(saved.getEmail()).isEqualTo(EMAIL);                                  // 저장된 이메일이 일치한다.
+        assertThat(saved.getName()).isEqualTo(NAME);                                    // 저장된 이름이 일치한다.
+        assertThat(saved.getPassword()).isEqualTo(ENCODED_PASSWORD);                    // 비밀번호가 암호화된 값으로 저장된다.
+        assertThat(saved.getProvider()).isEqualTo(AuthProvider.LOCAL);                  // 공급자가 LOCAL 로 지정된다.
 
-        verify(passwordEncoder).encode(PASSWORD);                                      // 비�?번호가 ?�코?�된??
-        verify(loginService).issueTokens(saved);                                       // ?�큰 발급???�출?�다.
+        verify(passwordEncoder).encode(PASSWORD);                                      // 비밀번호가 인코딩된다.
+        verify(loginService).issueTokens(saved);                                       // 토큰 발급이 호출된다.
     }
 
-    // ?�일???�메?�이 ?��? 존재?�면 ?�외�??�진??
+    // 동일한 이메일이 이미 존재하면 예외를 던진다.
     @Test
     void signUp_throwsWhenEmailAlreadyExists() {
         // Given
@@ -98,11 +98,10 @@ class SignUpServiceTest {
         when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(java.util.Optional.of(existing));
 
         // When & Then
-        assertThrows(AuthException.class, () -> signUpService.signUp(request));         // ?�외가 발생?�야 ?�다.
+        assertThrows(AuthException.class, () -> signUpService.signUp(request));         // 예외가 발생해야 한다.
 
         // Then
-        verify(userRepository, never()).save(any());                                    // ?�용???�?��? ?�어?��? ?�는??
-        verify(loginService, never()).issueTokens(any());                               // ?�큰 발급???�출?��? ?�는??
+        verify(userRepository, never()).save(any());                                    // 사용자 저장은 일어나지 않는다.
+        verify(loginService, never()).issueTokens(any());                               // 토큰 발급도 호출되지 않는다.
     }
 }
-
