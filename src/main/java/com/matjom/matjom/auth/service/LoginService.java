@@ -51,8 +51,8 @@ public class LoginService {
         refreshTokenRepository.save(user.getId(), refreshToken);
         loginRateLimiter.reset(user.getEmail());
 
-        LoginResponse response = LoginResponse.from(user);
-        return LoginResult.from(accessToken, refreshToken, response);
+        LoginResponse response = LoginResponse.from(user, refreshToken);
+        return LoginResult.from(accessToken, response);
     }
 
     private AuthException invalidCredentials(String email) {

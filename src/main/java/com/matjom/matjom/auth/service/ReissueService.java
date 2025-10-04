@@ -51,8 +51,8 @@ public class ReissueService {
         refreshTokenRepository.save(user.getId(), newRefreshToken);
         tokenBlacklistRepository.save(accessToken, jwtTokenProvider.getRemainingValidity(accessToken));
 
-        LoginResponse response = LoginResponse.from(user);
-        return LoginResult.from(newAccessToken, newRefreshToken, response);
+        LoginResponse response = LoginResponse.from(user, newRefreshToken);
+        return LoginResult.from(newAccessToken, response);
     }
 }
 
