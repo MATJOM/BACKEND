@@ -10,7 +10,11 @@ public record PlaceSearchResponse(List<PlaceSummary> places,
         this(places, nextCursor, null);
     }
 
-    public record PlaceSummary(Long placeId, String name, double distanceMeters) {
+    public record PlaceSummary(Long placeId,
+                               String name,
+                               double distanceMeters,
+                               double latitude,
+                               double longitude) {
     }
 
     public record Meta(String reason, String suggest) {

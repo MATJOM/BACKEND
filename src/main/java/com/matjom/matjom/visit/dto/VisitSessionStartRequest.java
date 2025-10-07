@@ -5,6 +5,11 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class VisitSessionStartRequest {
 
     @NotNull(message = "userId는 필수입니다.")
@@ -17,38 +22,6 @@ public class VisitSessionStartRequest {
     private String clientNote;
 
     private ClientMode clientMode;
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
-
-    public Long getPlaceId() {
-        return placeId;
-    }
-
-    public void setPlaceId(Long placeId) {
-        this.placeId = placeId;
-    }
-
-    public String getClientNote() {
-        return clientNote;
-    }
-
-    public void setClientNote(String clientNote) {
-        this.clientNote = clientNote;
-    }
-
-    public ClientMode getClientMode() {
-        return clientMode;
-    }
-
-    public void setClientMode(ClientMode clientMode) {
-        this.clientMode = clientMode;
-    }
 
     public ClientMode clientModeOrDefault() {
         if (clientMode == null) {

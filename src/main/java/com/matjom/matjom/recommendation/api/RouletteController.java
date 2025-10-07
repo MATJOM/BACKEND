@@ -15,33 +15,32 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/v1/recommendations")
 @Validated
+@RequiredArgsConstructor
 public class RouletteController {
 
     private static final int IDEMPOTENCY_KEY_MAX_LENGTH = 200;
 
     private final RouletteService rouletteService;
 
-    public RouletteController(RouletteService rouletteService) {
-        this.rouletteService = rouletteService;
-    }
-
     @PostMapping("/roulette")
     public ApiResponse<RouletteResponse> postRoulette(@RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
                                                       @Valid @RequestBody RouletteRequest request) {
-        String sanitizedKey = validateIdempotencyKey(idempotencyKey);
-        RouletteResponse response = rouletteService.recommend(request, sanitizedKey);
-        return ApiResponse.ok(response);
+        String sanitizedKey = validateIdempotencyKey(idempotencyKey); // 빈 헤더/200자 초과 방지
+        RouletteResponse response = rouletteService.recommend(request, sanitizedKey);// 멱등 키와 함께 서비스 호출
+        return ApiResponse.ok(response); // 공통 응답 규약 적용
     }
 
     private String validateIdempotencyKey(String idempotencyKey) {
-        if (!StringUtils.hasText(idempotencyKey)) {
+        if (!StringUtils.hasText(idempotencyKey)) { // 헤더 누락 → IDEMPOTENCY_KEY_REQUIRED
             throw new RecommendationException(ErrorCode.IDEMPOTENCY_KEY_REQUIRED);
         }
         String trimmed = idempotencyKey.trim();
-        if (trimmed.length() > IDEMPOTENCY_KEY_MAX_LENGTH) {
+        if (trimmed.length() > IDEMPOTENCY_KEY_MAX_LENGTH) { // 200자 초과 방지
             throw new RecommendationException(ErrorCode.INVALID_REQUEST_PARAM, "Idempotency-Key 길이는 200자를 초과할 수 없습니다.");
         }
         return trimmed;

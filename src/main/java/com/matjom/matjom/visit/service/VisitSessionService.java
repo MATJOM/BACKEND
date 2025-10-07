@@ -13,14 +13,20 @@ import com.matjom.matjom.place.entity.Place;
 import com.matjom.matjom.place.repository.PlaceJpaRepository;
 import com.matjom.matjom.user.entity.User;
 import com.matjom.matjom.user.repository.UserRepository;
+import com.matjom.matjom.visit.dto.VisitManualArrivalRequest;
+import com.matjom.matjom.visit.dto.VisitManualArrivalResponse;
 import com.matjom.matjom.visit.dto.VisitSessionStartRequest;
 import com.matjom.matjom.visit.dto.VisitSessionStartResponse;
 import com.matjom.matjom.visit.entity.ClientMode;
 import com.matjom.matjom.visit.entity.Visit;
 import com.matjom.matjom.visit.entity.VisitState;
+import com.matjom.matjom.visit.entity.VisitStateEventSource;
 import com.matjom.matjom.visit.repository.VisitRepository;
+import com.matjom.matjom.visit.util.GeoDistanceCalculator;
+import java.math.BigDecimal;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Objects;
@@ -33,25 +39,32 @@ import org.springframework.transaction.annotation.Transactional;
 public class VisitSessionService {
 
     private static final String IDEMPOTENCY_PREFIX = "idemp:sessions:start:";
+    private static final String ARRIVAL_IDEMPOTENCY_PREFIX = "idemp:sessions:arrival:";
     private static final long TIMEOUT_MINUTES = 30L;
     private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Seoul");
+    private static final long MANUAL_ARRIVAL_MIN_SECONDS = 600L;
+    private static final long MANUAL_ARRIVAL_MAX_SECONDS = 3600L;
+    private static final double MANUAL_ARRIVAL_MAX_DISTANCE_METERS = 30.0;
 
     private final VisitRepository visitRepository;
     private final PlaceJpaRepository placeRepository;
     private final UserRepository userRepository;
     private final IdempotencyStore idempotencyStore;
     private final ObjectMapper objectMapper;
+    private final VisitStateTransitionRecorder stateTransitionRecorder;
 
     public VisitSessionService(VisitRepository visitRepository,
                                PlaceJpaRepository placeRepository,
                                UserRepository userRepository,
                                IdempotencyStore idempotencyStore,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               VisitStateTransitionRecorder stateTransitionRecorder) {
         this.visitRepository = visitRepository;
         this.placeRepository = placeRepository;
         this.userRepository = userRepository;
         this.idempotencyStore = idempotencyStore;
         this.objectMapper = objectMapper;
+        this.stateTransitionRecorder = Objects.requireNonNull(stateTransitionRecorder, "stateTransitionRecorder");
     }
 
     @Transactional
@@ -74,6 +87,32 @@ public class VisitSessionService {
 
         if (result.isReplayed()) {
             return markReplayed(result.getValue());
+        }
+        return result.getValue();
+    }
+
+    @Transactional
+    public VisitManualArrivalResponse confirmManualArrival(Long sessionId,
+                                                           VisitManualArrivalRequest request,
+                                                           String idempotencyKey) {
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        String redisKey = ARRIVAL_IDEMPOTENCY_PREFIX + sessionId + ':' + idempotencyKey;
+        String requestHash = computeRequestHash(request);
+
+        IdempotencyResult<VisitManualArrivalResponse> result = idempotencyStore.replayOrRun(
+                redisKey,
+                requestHash,
+                VisitManualArrivalResponse.class,
+                new IdempotencyCallback<VisitManualArrivalResponse>() {
+                    @Override
+                    public VisitManualArrivalResponse execute() {
+                        return processManualArrival(sessionId, request);
+                    }
+                }
+        );
+
+        if (result.isReplayed()) {
+            return markManualReplayed(result.getValue());
         }
         return result.getValue();
     }
@@ -103,9 +142,10 @@ public class VisitSessionService {
         OffsetDateTime startedAt = OffsetDateTime.now(DEFAULT_ZONE);
 
         Visit visit = new Visit(user, place, mode, startedAt);
+        OffsetDateTime expiresAt = startedAt.plusMinutes(TIMEOUT_MINUTES);
+        visit.setExpiredAt(expiresAt);
         Visit saved = visitRepository.save(visit);
 
-        OffsetDateTime expiresAt = startedAt.plusMinutes(TIMEOUT_MINUTES);
         return new VisitSessionStartResponse(saved.getId(), saved.getState(), saved.getStartedAt(), expiresAt, false);
     }
 
@@ -119,7 +159,62 @@ public class VisitSessionService {
         );
     }
 
-    private String computeRequestHash(VisitSessionStartRequest request) {
+    private VisitManualArrivalResponse processManualArrival(Long sessionId, VisitManualArrivalRequest request) {
+        Optional<Visit> optionalVisit = visitRepository.findById(sessionId);
+        if (optionalVisit.isEmpty()) {
+            throw new SessionException(ErrorCode.SESSION_NOT_FOUND);
+        }
+        Visit visit = optionalVisit.get();
+        VisitState previousState = visit.getState();
+        if (visit.getState() != VisitState.ACTIVE) {
+            throw new SessionException(ErrorCode.SESSION_ALREADY_INACTIVE);
+        }
+
+        OffsetDateTime startedAt = visit.getStartedAt();
+        OffsetDateTime now = OffsetDateTime.now(DEFAULT_ZONE);
+        long elapsedSeconds = Duration.between(startedAt, now).getSeconds();
+        if (elapsedSeconds < MANUAL_ARRIVAL_MIN_SECONDS || elapsedSeconds > MANUAL_ARRIVAL_MAX_SECONDS) {
+            throw new SessionException(ErrorCode.ARRIVAL_TIME_INVALID);
+        }
+
+        Place place = visit.getPlace();
+        BigDecimal placeLat = place.getLatitude();
+        BigDecimal placeLng = place.getLongitude();
+        double distanceMeters = GeoDistanceCalculator.distanceMeters(
+                placeLat,
+                placeLng,
+                request.getLatitude(),
+                request.getLongitude());
+        if (distanceMeters > MANUAL_ARRIVAL_MAX_DISTANCE_METERS) {
+            throw new SessionException(ErrorCode.ARRIVAL_DISTANCE_EXCEEDED);
+        }
+
+        visit.updateLastPosition(request.getLatitude(), request.getLongitude(), request.getAccuracyMeters(), now);
+        visit.arriveAt(now);
+        visitRepository.save(visit);
+
+        stateTransitionRecorder.record(visit, previousState, visit.getState(), VisitStateEventSource.MANUAL_ARRIVAL, now);
+
+        return new VisitManualArrivalResponse(
+                visit.getId(),
+                visit.getState(),
+                visit.getArrivedAt(),
+                request.getRequestedBy(),
+                false
+        );
+    }
+
+    private VisitManualArrivalResponse markManualReplayed(VisitManualArrivalResponse original) {
+        return new VisitManualArrivalResponse(
+                original.sessionId(),
+                original.state(),
+                original.arrivedAt(),
+                original.requestedBy(),
+                true
+        );
+    }
+
+    private String computeRequestHash(Object request) {
         byte[] jsonBytes = toJsonBytes(request);
         MessageDigest digest = messageDigest();
         byte[] hashed = digest.digest(jsonBytes);
@@ -135,11 +230,11 @@ public class VisitSessionService {
         return builder.toString();
     }
 
-    private byte[] toJsonBytes(VisitSessionStartRequest request) {
+    private byte[] toJsonBytes(Object request) {
         try {
             return objectMapper.writeValueAsBytes(request);
         } catch (JsonProcessingException ex) {
-            throw new SessionException(ErrorCode.INTERNAL_SERVER_ERROR, "세션 시작 요청 직렬화에 실패했습니다.");
+            throw new SessionException(ErrorCode.INTERNAL_SERVER_ERROR, "세션 요청 직렬화에 실패했습니다.");
         }
     }
 

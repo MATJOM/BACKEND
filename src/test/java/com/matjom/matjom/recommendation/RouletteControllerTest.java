@@ -78,7 +78,7 @@ class RouletteControllerTest {
     void returnsOkWhenIdempotencyKeyPresent() throws Exception {
         RouletteRequest request = buildRequest();
         when(rouletteService.recommend(any(RouletteRequest.class), eq("abc-123")))
-                .thenReturn(new RouletteResponse(1L, "Place", 42.0, List.of("korean"), new RouletteResponse.Meta(10, false)));
+                .thenReturn(new RouletteResponse(1L, "Place", 42.0, List.of("korean"), 37.5665, 126.9780, new RouletteResponse.Meta(10, false)));
 
         mockMvc.perform(post("/api/v1/recommendations/roulette")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -94,7 +94,7 @@ class RouletteControllerTest {
     void trimsIdempotencyKeyBeforePassingToService() throws Exception {
         RouletteRequest request = buildRequest();
         when(rouletteService.recommend(any(RouletteRequest.class), eq("trimmed")))
-                .thenReturn(new RouletteResponse(2L, "Trimmed", 10.0, List.of(), new RouletteResponse.Meta(5, false)));
+                .thenReturn(new RouletteResponse(2L, "Trimmed", 10.0, List.of(), 37.5000, 127.0000, new RouletteResponse.Meta(5, false)));
 
         mockMvc.perform(post("/api/v1/recommendations/roulette")
                         .contentType(MediaType.APPLICATION_JSON)

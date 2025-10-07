@@ -26,15 +26,45 @@
 - `docs/RUA/explanations/session-lifecycle-main-issue.md` - 4.x 메인 이슈 및 서브 이슈 관리 문서.
 - `docs/RUA/explanations/session-lifecycle-task-guide.md` - 세션 라이프사이클 사전 학습 가이드.
 - `docs/RUA/explanations/session-lifecycle-delivery-summary.md` - 4.x 완료 후 결과 요약 템플릿.
+- `docs/RUA/explanations/session-lifecycle-issue-24-2-prep.md` - 4.2 위치 수신 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-2-impl.md` - 4.2 위치 수신 구현 요약.
+- `docs/RUA/explanations/session-lifecycle-issue-24-3-prep.md` - 4.3 GeoFenceEvaluator 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-3-impl.md` - 4.3 GeoFenceEvaluator 구현 요약.
+- `docs/RUA/explanations/session-lifecycle-issue-24-4-prep.md` - 4.4 정확도 가드 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-4-impl.md` - 4.4 정확도 가드 구현 요약.
+- `docs/RUA/explanations/session-lifecycle-issue-24-5-prep.md` - 4.5 수동 도착 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-5-impl.md` - 4.5 수동 도착 구현 요약.
+- `docs/RUA/explanations/session-lifecycle-issue-24-6-prep.md` - 4.6 타임아웃 스케줄러 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-6-impl.md` - 4.6 타임아웃 스케줄러 구현 요약.
+- `docs/RUA/explanations/session-lifecycle-issue-24-7-prep.md` - 4.7 상태 전이 이벤트 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-7-impl.md` - 4.7 상태 전이 이벤트 구현 요약.
+- `docs/RUA/explanations/session-lifecycle-issue-24-8-prep.md` - 4.8 경계 테스트 선행 학습 문서.
+- `docs/RUA/explanations/session-lifecycle-issue-24-8-impl.md` - 4.8 경계 테스트 구현 요약.
+- `docs/RUA/future/visit-audit-metadata-guide.md` - Visit 감사 메타 적재 향후 적용 가이드.
+- `docs/RUA/future/visit-timeout-distributed-lock-guide.md` - 타임아웃 스케줄러 분산 락 향후 적용 가이드.
+- `docs/RUA/future/visit-expiration-event-guide.md` - 방문 만료 이벤트 기록·노출 향후 적용 가이드.
+- `docs/RUA/future/visit-state-event-streaming-guide.md` - 상태 전이 이벤트 스트리밍 설계 가이드.
+- `docs/RUA/future/visit-state-event-consumer-guide.md` - 상태 전이 이벤트 소비자 설계 가이드.
 - `docs/adr/ADR-00X-arrival-policy-30m-3min.md` - 도착 판정·유예 정책 근거.
 - `infra/grafana/dashboards/search-session-auth.json` - 대시보드 JSON.
 - `src/main/java/com/matjom/matjom/visit/api/VisitSessionController.java` - 세션 시작 API 엔드포인트.
+- `src/main/java/com/matjom/matjom/visit/api/VisitSessionController.java` - 세션 시작/위치 수신 API 엔드포인트.
 - `src/main/java/com/matjom/matjom/visit/service/VisitSessionService.java` - 세션 시작 멱등/검증 비즈니스 로직.
+- `src/main/java/com/matjom/matjom/visit/service/VisitPositionService.java` - 위치 이벤트 저장 및 지오펜스 연동.
 - `src/main/java/com/matjom/matjom/visit/dto/VisitSessionStartRequest.java` - 세션 시작 요청 DTO.
 - `src/main/java/com/matjom/matjom/visit/dto/VisitSessionStartResponse.java` - 세션 시작 응답 DTO.
+- `src/main/java/com/matjom/matjom/visit/dto/VisitPositionRequest.java` - 위치 이벤트 요청 DTO.
+- `src/main/java/com/matjom/matjom/visit/dto/VisitPositionResponse.java` - 위치 이벤트 응답 DTO.
+- `src/main/java/com/matjom/matjom/visit/repository/VisitPositionRepository.java` - 위치 이벤트 저장 리포지토리.
+- `src/main/java/com/matjom/matjom/visit/geofence/GeoFenceEvaluator.java` - 지오펜스 평가 인터페이스.
+- `src/main/java/com/matjom/matjom/visit/geofence/GeoFenceEvaluationResult.java` - 지오펜스 평가 결과 객체.
+- `src/main/java/com/matjom/matjom/visit/geofence/DefaultGeoFenceEvaluator.java` - 30m/180s/10s 로직을 적용한 평가 구현.
+- `src/main/java/com/matjom/matjom/visit/geofence/DefaultGeoFenceEvaluator.java` - 30m/180s/10s + 정확도 가드 로직.
 - `src/main/java/com/matjom/matjom/place/repository/PlaceJpaRepository.java` - 장소 조회용 Spring Data 리포지토리.
 - `src/main/java/com/matjom/matjom/user/repository/UserRepository.java` - 사용자 조회용 Spring Data 리포지토리.
 - `src/test/java/com/matjom/matjom/visit/service/VisitSessionServiceTest.java` - 세션 시작 서비스 단위 테스트.
+- `src/test/java/com/matjom/matjom/visit/service/VisitPositionServiceTest.java` - 위치 이벤트 서비스 단위 테스트.
+- `src/test/java/com/matjom/matjom/visit/geofence/DefaultGeoFenceEvaluatorTest.java` - 지오펜스 평가 로직 단위 테스트.
 
 - `src/test/java/com/matjom/matjom/place/PlaceSearchServiceTest.java` - 검색 커서/상한/캐시 단위·통합 테스트.
 - `src/test/java/com/matjom/matjom/recommendation/service/RouletteServiceTest.java` - 균등성/멱등 재생/분포 테스트.
@@ -83,13 +113,13 @@
 
 - [ ] 4.0 세션 라이프사이클
   - [x] 4.1 `VisitSessionController.start()` 구현: 멱등키 필수, 중복 ACTIVE 방지(트랜잭션/UNIQUE 제약).
-  - [ ] 4.2 `VisitSessionController.postLocation()` 구현: 위치 이벤트 수신 + `GeoFenceEvaluator` 호출.
-  - [ ] 4.3 `GeoFenceEvaluator` 구현: 30m 내 판정, dwell 타이머 시작/정지, **유예 10s** 내 재진입 시 누적 유지 로직.
-  - [ ] 4.4 정확도 가드: `accuracy_m>30`이면 dwell 카운트 **일시 정지**(포지션 기록은 지속).
-  - [ ] 4.5 `arrivals`(수동) 구현: 반경 ≤30m & 시작 10~60분 사이 유효성 검사 후 `arrived_at`.
-  - [ ] 4.6 타임아웃 스케줄러: `started_at + 30m` 초과 시 `EXPIRED` 전이.
-  - [ ] 4.7 상태 전이 이벤트 로깅(`event=ARRIVED|EXPIRED|CANCELLED`) 및 당일 권한 부여 트리거.
-  - [ ] 4.8 테스트: 29m/2.9m 미도착, 30m/3.0m 도착, 이탈 9s 연속/11s 리셋, 29분대 도착 허용.
+  - [x] 4.2 `VisitSessionController.postLocation()` 구현: 위치 이벤트 수신 + `GeoFenceEvaluator` 호출.
+  - [x] 4.3 `GeoFenceEvaluator` 구현: 30m 내 판정, dwell 타이머 시작/정지, **유예 10s** 내 재진입 시 누적 유지 로직.
+  - [x] 4.4 정확도 가드: `accuracy_m>30`이면 dwell 카운트 **일시 정지**(포지션 기록은 지속).
+  - [x] 4.5 `arrivals`(수동) 구현: 반경 ≤30m & 시작 10~60분 사이 유효성 검사 후 `arrived_at`.
+  - [x] 4.6 타임아웃 스케줄러: `started_at + 30m` 초과 시 `EXPIRED` 전이.
+  - [x] 4.7 상태 전이 이벤트 로깅(`event=ARRIVED|EXPIRED|CANCELLED`) 및 당일 권한 부여 트리거.
+  - [x] 4.8 테스트: 29m/2.9m 미도착, 30m/3.0m 도착, 이탈 9s 연속/11s 리셋, 29분대 도착 허용.
 
 - [ ] 5.0 위치 수용 간격 가드
   - [ ] 5.1 `VisitSessionController.postLocation()` 진입 전 필터에서 모드별 간격 체크(`auto≥25s`, `manual≥5s`).

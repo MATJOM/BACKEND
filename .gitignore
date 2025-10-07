@@ -51,3 +51,4 @@ out/
 ### Build/test artefacts ###
 logs/
 /.gradle-test-kit/
+/.gradle-home/

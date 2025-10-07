@@ -22,6 +22,8 @@ import java.util.Objects;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import lombok.Getter;
+
 @Entity
 @Table(name = "visits", indexes = {
         @Index(name = "idx_visits_user", columnList = "user_id"),
@@ -29,6 +31,7 @@ import org.hibernate.type.SqlTypes;
         @Index(name = "idx_visits_state", columnList = "state"),
         @Index(name = "idx_visits_started_at", columnList = "started_at")
 })
+@Getter
 public class Visit extends BaseEntity {
 
     @Id
@@ -86,7 +89,6 @@ public class Visit extends BaseEntity {
     protected Visit() {
         // JPA
     }
-
     public Visit(User user,
                  Place place,
                  ClientMode clientMode,
@@ -98,64 +100,44 @@ public class Visit extends BaseEntity {
         this.state = VisitState.ACTIVE;
     }
 
-    public Long getId() {
-        return id;
+    public void setExpiredAt(OffsetDateTime expiredAtValue) {
+        this.expiredAt = expiredAtValue;
     }
 
-    public User getUser() {
-        return user;
+    public void setMeta(JsonNode metaValue) {
+        this.meta = metaValue;
     }
 
-    public Place getPlace() {
-        return place;
+    public void updateLastPosition(BigDecimal latitudeValue,
+                                   BigDecimal longitudeValue,
+                                   BigDecimal accuracyValue,
+                                   OffsetDateTime recordedAt) {
+        this.lastLatitude = latitudeValue;
+        this.lastLongitude = longitudeValue;
+        this.lastAccuracyMeter = accuracyValue;
+        this.lastPositionAt = recordedAt;
     }
 
-    public VisitState getState() {
-        return state;
+    public void startDwellIfAbsent(OffsetDateTime startedAtValue) {
+        if (dwellStartedAt == null) {
+            dwellStartedAt = startedAtValue;
+        }
     }
 
-    public ClientMode getClientMode() {
-        return clientMode;
+    public void resetDwell() {
+        dwellStartedAt = null;
     }
 
-    public OffsetDateTime getStartedAt() {
-        return startedAt;
+    public void transitionTo(VisitState nextState) {
+        if (nextState == null || state == nextState) {
+            return;
+        }
+        state = nextState;
     }
 
-    public OffsetDateTime getArrivedAt() {
-        return arrivedAt;
-    }
-
-    public OffsetDateTime getCancelledAt() {
-        return cancelledAt;
-    }
-
-    public OffsetDateTime getExpiredAt() {
-        return expiredAt;
-    }
-
-    public OffsetDateTime getLastPositionAt() {
-        return lastPositionAt;
-    }
-
-    public OffsetDateTime getDwellStartedAt() {
-        return dwellStartedAt;
-    }
-
-    public BigDecimal getLastLatitude() {
-        return lastLatitude;
-    }
-
-    public BigDecimal getLastLongitude() {
-        return lastLongitude;
-    }
-
-    public BigDecimal getLastAccuracyMeter() {
-        return lastAccuracyMeter;
-    }
-
-    public JsonNode getMeta() {
-        return meta;
+    public void arriveAt(OffsetDateTime arrivedAtValue) {
+        state = VisitState.ARRIVED;
+        arrivedAt = arrivedAtValue;
     }
 
 }

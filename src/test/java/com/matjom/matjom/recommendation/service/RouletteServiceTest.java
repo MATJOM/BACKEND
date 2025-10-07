@@ -63,9 +63,9 @@ class RouletteServiceTest {
         request.setSeed(42L);
 
         List<RouletteCandidate> candidates = List.of(
-                new RouletteCandidate(1L, "A", 10.0, List.of("korean")),
-                new RouletteCandidate(2L, "B", 20.0, List.of("japanese")),
-                new RouletteCandidate(3L, "C", 30.0, List.of("chinese"))
+                candidate(1L, "A", 10.0, List.of("korean"), 37.5001, 127.0001),
+                candidate(2L, "B", 20.0, List.of("japanese"), 37.5002, 127.0002),
+                candidate(3L, "C", 30.0, List.of("chinese"), 37.5003, 127.0003)
         );
         when(placeRepository.findRouletteCandidates(anyDouble(), anyDouble(), anyDouble(), anyList(), anyInt()))
                 .thenReturn(candidates);
@@ -73,6 +73,8 @@ class RouletteServiceTest {
         RouletteResponse response = rouletteService.recommend(request, "key-1");
 
         assertThat(response.placeId()).isEqualTo(3L);
+        assertThat(response.latitude()).isEqualTo(37.5003);
+        assertThat(response.longitude()).isEqualTo(127.0003);
         assertThat(response.meta().candidateCount()).isEqualTo(3);
         assertThat(response.meta().replayed()).isFalse();
     }
@@ -95,9 +97,9 @@ class RouletteServiceTest {
     @Test
     void recommendDistributionRemainsWithinFivePercentTolerance() {
         List<RouletteCandidate> candidates = List.of(
-                new RouletteCandidate(1L, "A", 10.0, List.of("korean")),
-                new RouletteCandidate(2L, "B", 20.0, List.of("japanese")),
-                new RouletteCandidate(3L, "C", 30.0, List.of("chinese"))
+                candidate(1L, "A", 10.0, List.of("korean"), 37.5001, 127.0001),
+                candidate(2L, "B", 20.0, List.of("japanese"), 37.5002, 127.0002),
+                candidate(3L, "C", 30.0, List.of("chinese"), 37.5003, 127.0003)
         );
         when(placeRepository.findRouletteCandidates(anyDouble(), anyDouble(), anyDouble(), anyList(), anyInt()))
                 .thenReturn(candidates);
@@ -120,6 +122,8 @@ class RouletteServiceTest {
             counts[index] = counts[index] + 1;
             assertThat(response.meta().candidateCount()).isEqualTo(3);
             assertThat(response.meta().replayed()).isFalse();
+            assertThat(response.latitude()).isBetween(37.5001, 37.5003);
+            assertThat(response.longitude()).isBetween(127.0001, 127.0003);
         }
 
         int min = counts[0];
@@ -144,6 +148,8 @@ class RouletteServiceTest {
                 "Cached",
                 12.3,
                 List.of("korean"),
+                37.5010,
+                127.0010,
                 new RouletteResponse.Meta(5, false)
         );
         when(idempotencyStore.replayOrRun(anyString(), anyString(), eq(RouletteResponse.class), any()))
@@ -152,6 +158,8 @@ class RouletteServiceTest {
         RouletteResponse response = rouletteService.recommend(request, "key-3");
 
         assertThat(response.placeId()).isEqualTo(99L);
+        assertThat(response.latitude()).isEqualTo(37.5010);
+        assertThat(response.longitude()).isEqualTo(127.0010);
         assertThat(response.meta().candidateCount()).isEqualTo(5);
         assertThat(response.meta().replayed()).isTrue();
     }
@@ -165,5 +173,13 @@ class RouletteServiceTest {
         request.setCategories(List.of("korean"));
         return request;
     }
-}
 
+    private RouletteCandidate candidate(long id,
+                                        String name,
+                                        double distance,
+                                        List<String> categories,
+                                        double lat,
+                                        double lng) {
+        return new RouletteCandidate(id, name, distance, categories, lat, lng);
+    }
+}

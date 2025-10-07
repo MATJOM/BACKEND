@@ -11,16 +11,15 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/v1/places")
 @Validated
+@RequiredArgsConstructor
 public class PlaceController {
 
     private final PlaceSearchService placeSearchService;
-
-    public PlaceController(PlaceSearchService placeSearchService) {
-        this.placeSearchService = placeSearchService;
-    }
 
     @GetMapping
     public ApiResponse<PlaceSearchResponse> getPlaces(@Valid @ModelAttribute PlaceSearchRequest request) {

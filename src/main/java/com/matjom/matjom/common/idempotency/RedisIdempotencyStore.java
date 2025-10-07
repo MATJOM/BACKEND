@@ -12,6 +12,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Component;
 
+import lombok.Getter;
+import lombok.Setter;
+
 @Component
 @ConditionalOnBean(org.springframework.data.redis.core.StringRedisTemplate.class)
 public class RedisIdempotencyStore implements IdempotencyStore {
@@ -109,32 +112,15 @@ public class RedisIdempotencyStore implements IdempotencyStore {
         }
     }
 
+	@Getter
+	@Setter
     private static final class StoredValue {
 
         private String requestHash;
         private String payloadJson;
 
-        private StoredValue() {
-        }
-
         private StoredValue(String requestHash, String payloadJson) {
             this.requestHash = requestHash;
-            this.payloadJson = payloadJson;
-        }
-
-        public String getRequestHash() {
-            return requestHash;
-        }
-
-        public void setRequestHash(String requestHash) {
-            this.requestHash = requestHash;
-        }
-
-        public String getPayloadJson() {
-            return payloadJson;
-        }
-
-        public void setPayloadJson(String payloadJson) {
             this.payloadJson = payloadJson;
         }
     }

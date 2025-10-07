@@ -15,20 +15,28 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class PlaceRepository {
 
+    // Native PostGIS query: 검색 반경 내 장소를 거리 ASC, 동일 거리 시 ID ASC로 정렬해 커서 페이징한다.
+    // - user_point: 요청 위경도를 geography 포인트로 변환(미터 단위 거리 계산).
+    // - ranked: ST_DWithin으로 반경 내 장소를 필터링하고 ST_Distance로 거리(m)를 산출.
+    // - 최종 SELECT: 커서(distance,lastId) 조건과 정렬을 적용해 pageSize(+1)만큼 가져온다.
     private static final String SEARCH_SQL = """
             WITH user_point AS (
                 SELECT ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography AS point
             ), ranked AS (
                 SELECT p.place_id,
                        p.name,
-                       ST_Distance(p.location, up.point, true) AS distance_m
+                       ST_Distance(p.location, up.point, true) AS distance_m,
+                       p.lat,
+                       p.lng
                 FROM places p
                 CROSS JOIN user_point up
                 WHERE ST_DWithin(p.location, up.point, :radius, true)
             )
             SELECT place_id,
                    name,
-                   distance_m
+                   distance_m,
+                   lat,
+                   lng
             FROM ranked
             WHERE (:cursorDistance IS NULL
                 OR distance_m > :cursorDistance
@@ -44,7 +52,9 @@ public class PlaceRepository {
             SELECT p.place_id,
                    p.name,
                    p.category,
-                   ST_Distance(p.location, up.point, true) AS distance_m
+                   ST_Distance(p.location, up.point, true) AS distance_m,
+                   p.lat,
+                   p.lng
             FROM places p
             CROSS JOIN user_point up
             WHERE ST_DWithin(p.location, up.point, :radius, true)
@@ -60,7 +70,9 @@ public class PlaceRepository {
             return new PlaceSummary(
                     rs.getLong("place_id"),
                     rs.getString("name"),
-                    rs.getDouble("distance_m"));
+                    rs.getDouble("distance_m"),
+                    rs.getDouble("lat"),
+                    rs.getDouble("lng"));
         }
     };
 
@@ -75,7 +87,9 @@ public class PlaceRepository {
                     rs.getLong("place_id"),
                     rs.getString("name"),
                     rs.getDouble("distance_m"),
-                    List.copyOf(categoryList)
+                    List.copyOf(categoryList),
+                    rs.getDouble("lat"),
+                    rs.getDouble("lng")
             );
         }
     };

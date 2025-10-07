@@ -1,5 +1,8 @@
 package com.matjom.matjom.common.idempotency;
 
+import lombok.Getter;
+
+@Getter
 public final class IdempotencyResult<T> {
 
     private final T value;
@@ -8,13 +11,5 @@ public final class IdempotencyResult<T> {
     public IdempotencyResult(T value, boolean replayed) {
         this.value = value;
         this.replayed = replayed;
-    }
-
-    public T getValue() {
-        return value;
-    }
-
-    public boolean isReplayed() {
-        return replayed;
     }
 }

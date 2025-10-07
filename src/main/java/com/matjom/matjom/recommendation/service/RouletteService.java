@@ -20,30 +20,33 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.stereotype.Service;
 
-@Service
-public class RouletteService {
+import lombok.RequiredArgsConstructor;
 
+@Service
+@RequiredArgsConstructor
+public class RouletteService {
+	// 반경/상한의 서비스 기본값들
     private static final double DEFAULT_RADIUS_METERS = 300.0;
     private static final int DEFAULT_LIMIT = 200;
     private static final int MAX_LIMIT = 500;
-    private static final String IDEMPOTENCY_PREFIX = "idemp:roulette:";
 
-    private final PlaceRepository placeRepository;
+	// Redis 멱등 키 prefix (최종 키는 idemp:roulette:{Idempotency-Key})
+	private static final String IDEMPOTENCY_PREFIX = "idemp:roulette:";
+
+	// 후보 조회(쿼리) 담당
+	private final PlaceRepository placeRepository;
+
+	// 멱등 저장/재생 담당(프로필에 따라 InMemory/Redis 구현)
     private final IdempotencyStore idempotencyStore;
+
+	// 요청을 JSON 바이트로 직렬화하여 해시 생성에 사용
     private final ObjectMapper objectMapper;
 
-    public RouletteService(PlaceRepository placeRepository,
-                           IdempotencyStore idempotencyStore,
-                           ObjectMapper objectMapper) {
-        this.placeRepository = placeRepository;
-        this.idempotencyStore = idempotencyStore;
-        this.objectMapper = objectMapper;
-    }
 
     public RouletteResponse recommend(final RouletteRequest request, String idempotencyKey) {
-        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
-        String redisKey = IDEMPOTENCY_PREFIX + idempotencyKey;
-        String requestHash = computeRequestHash(request);
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey"); // 컨트롤러에서 보장하더라도 방어 코드
+        String redisKey = IDEMPOTENCY_PREFIX + idempotencyKey;  		 // Redis 저장 키 prefix
+        String requestHash = computeRequestHash(request); 				 // 요청 본문을 SHA-256으로 해싱(충돌 방지)
 
         IdempotencyResult<RouletteResponse> result = idempotencyStore.replayOrRun(
                 redisKey,
@@ -52,7 +55,7 @@ public class RouletteService {
                 new IdempotencyCallback<RouletteResponse>() {
                     @Override
                     public RouletteResponse execute() {
-                        return executeRecommendation(request);
+                        return executeRecommendation(request); // 최초 실행 시 실제 추천 로직 수행
                     }
                 }
         );
@@ -86,6 +89,8 @@ public class RouletteService {
                 chosen.name(),
                 chosen.distanceMeters(),
                 chosen.categories(),
+                chosen.latitude(),
+                chosen.longitude(),
                 new RouletteResponse.Meta(candidates.size(), false)
         );
     }
@@ -98,6 +103,8 @@ public class RouletteService {
                 original.name(),
                 original.distanceMeters(),
                 original.categories(),
+                original.latitude(),
+                original.longitude(),
                 new RouletteResponse.Meta(candidateCount, true)
         );
     }
