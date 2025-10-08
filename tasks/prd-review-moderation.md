@@ -12,17 +12,17 @@
 - [x] Visit 연동 단순 자격 검증
   - [x] `ReviewService.checkReviewEligibility`에서 `VisitRepository`를 사용해 `visitId` 존재, `arrived` 여부만 확인하도록 단순화
   - [x] 자격 미충족 시 던지는 `FeedException` 코드/메시지를 JWT 인증 흐름에 맞게 재검토
-  - [x] 동일한 Check 로직을 좋아요 쪽(`DailyLikeService.checkLikeEligibility`)에도 적용 및 재사용 방식 검토
+  - [x] 동일한 Check 로직을 좋아요 쪽(`LikeService` 24시간 자격 검증)에도 적용
 
 - [x] 좋아요 플로우 단순화
-  - [x] `DailyLike` 엔티티와 DTO에서 현재 로직에 필요 없는 필드/메서드 제거, 상태 전환(`ACTIVE` ↔ `CANCELLED`)만 유지
-  - [x] 좋아요 등록/취소/재등록 서비스 로직을 최소한의 파라미터와 예외 처리만 남기도록 리팩터링
-  - [x] `DailyLikeRepository`의 JPQL/네이티브 쿼리를 실제 사용 시나리오에 맞게 정리
+  - [x] `Like` 엔티티/DTO에서 필요 없는 필드 제거, 상태 전환(`ACTIVE` ↔ `CANCELLED`)만 유지
+  - [x] 좋아요 등록/취소/재활성화 로직을 최소한의 파라미터와 예외 처리만 남기도록 리팩터링
+  - [x] `LikeRepository` 쿼리를 실제 사용 시나리오에 맞게 정리
 
 - [ ] 신고/모더레이션 축소
-  - [x] 리뷰 신고는 건수 집계만 남기고 자동 제재 로직 제거
-  - [x] `ReviewModerationService`와 관련 DTO를 신고 건수 중심으로 단순화
-  - [x] 신고 API 응답에서 warningCount 제거, reportCount 제공
+  - [x] 리뷰 신고는 건수 집계와 자동 삭제(3회 이상)만 유지
+  - [x] `ReviewModerationService`와 관련 DTO를 신고 사유/설명만 저장하도록 단순화
+  - [x] 신고 API 응답은 성공 여부만 반환하도록 변경
 
 - [ ] 테스트 강화
   - [x] 통합 테스트: Mock이 아닌 실제 JPA 레포지토리를 사용해 리뷰 작성/수정/삭제 및 좋아요 등록/취소/재등록이 정상 동작하는지 검증
@@ -38,16 +38,16 @@
 - [x] `src/main/java/com/matjom/matjom/feed/dto/assembler/ReviewResponseAssembler.java` — 리뷰 응답에 작성자 이름만 안전하게 주입
 - [x] `src/main/java/com/matjom/matjom/feed/repository/UserReadRepository.java` — 리뷰 응답에 작성자 이름 조회
 - [x] `src/main/java/com/matjom/matjom/common/config/JpaConfig.java` — 테스트 및 Auditing 설정
-- [x] `src/test/java/com/matjom/matjom/feed/service/DailyLikeServiceIntegrationTest.java` — 테스트 및 Auditing 설정
-- [x] `src/test/java/com/matjom/matjom/feed/service/DailyLikeServiceTest.java` — 테스트 및 Auditing 설정
+- [x] `src/test/java/com/matjom/matjom/feed/service/LikeServiceIntegrationTest.java` — 테스트 및 Auditing 설정
+- [x] `src/test/java/com/matjom/matjom/feed/service/LikeServiceTest.java` — 테스트 및 Auditing 설정
 - [x] `src/test/java/com/matjom/matjom/feed/service/ReviewServiceIntegrationTest.java` — 테스트 및 Auditing 설정
 - [x] `src/test/java/com/matjom/matjom/feed/service/ReviewServiceTest.java` — 테스트 및 Auditing 설정
 - [x] `src/main/java/com/matjom/matjom/common/security/CustomUserDetails.java` — JWT 인증용 사용자 정보 래퍼
-- [x] (삭제) `src/main/java/com/matjom/matjom/feed/dto/response/DailyLikeResponseDTO.java` · `DailyLikeResponseAssembler.java` — ApiResponse.ok()만 사용하도록 정리
-- [x] `src/main/java/com/matjom/matjom/feed/dto/request/DailyLikeCreateRequestDTO.java` — 좋아요 핵심 구현
+- [x] `src/main/java/com/matjom/matjom/feed/dto/response/LikeStatusResponseDTO.java` — 좋아요 응답 DTO
+- [x] `src/main/java/com/matjom/matjom/feed/dto/request/LikeCreateRequestDTO.java` — 좋아요 핵심 구현
 - [x] `src/main/java/com/matjom/matjom/feed/entity/likes/LikeStatus.java` — 좋아요 핵심 구현
-- [x] `src/main/java/com/matjom/matjom/feed/repository/VisitReadRepository.java` — 방문 자격 검증 재사용 로직
-- [x] `src/main/java/com/matjom/matjom/feed/service/VisitEligibilityChecker.java` — 방문 자격 검증 재사용 로직
+- [x] `src/main/java/com/matjom/matjom/visit/repository/VisitReadRepository.java` — 방문 자격 검증 재사용 로직
+- [x] `src/main/java/com/matjom/matjom/visit/service/VisitEligibilityChecker.java` — 방문 자격 검증 재사용 로직
 
 - [x] `src/main/java/com/matjom/matjom/feed/dto/response/ReviewResponseDTO.java` — 리뷰 응답 DTO 최소화
 - [x] 리뷰 상태 ENUM 제거 → BaseEntity `deleted_at`만 사용
@@ -55,9 +55,9 @@
 - [x] `src/main/java/com/matjom/matjom/feed/service/ReviewService.java` — 방문 자격 검증과 리뷰 CRUD 단순화
 - [x] `src/main/java/com/matjom/matjom/feed/repository/ReviewRepository.java` — 필요 메서드만 남기기
 - [ ] `src/main/java/com/matjom/matjom/feed/controller/ReviewController.java` — JWT 기반 사용자 정보 처리 확인
-- [x] `src/main/java/com/matjom/matjom/feed/entity/likes/DailyLike.java` — 좋아요 엔티티 최소화
-- [x] `src/main/java/com/matjom/matjom/feed/service/DailyLikeService.java` — 좋아요 등록/취소/재등록 로직 단순화
-- [x] `src/main/java/com/matjom/matjom/feed/repository/DailyLikeRepository.java` — 필요 쿼리만 유지
+- [x] `src/main/java/com/matjom/matjom/feed/entity/likes/Like.java` — 좋아요 엔티티 최소화
+- [x] `src/main/java/com/matjom/matjom/feed/service/LikeService.java` — 좋아요 등록/취소/재활성화 로직 단순화
+- [x] `src/main/java/com/matjom/matjom/feed/repository/LikeRepository.java` — 필요 쿼리만 유지
 - [x] `src/main/java/com/matjom/matjom/moderation/ReviewModerationService.java` — 신고 건수 집계만 남기도록 리팩터링
 - [x] `src/main/resources/schema-postgres.sql` — 리뷰/신고 테이블 스키마에서 불필요 필드/인덱스 제거
 - [x] `src/test/java/com/matjom/matjom/moderation/ReviewModerationServiceTest.java` — 신고 건수 동작 검증

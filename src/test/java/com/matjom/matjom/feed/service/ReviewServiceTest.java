@@ -7,14 +7,16 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.matjom.matjom.feed.dto.assembler.ReviewResponseAssembler;
-import com.matjom.matjom.feed.dto.request.ReviewCreateRequestDTO;
-import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
-import com.matjom.matjom.feed.repository.ReviewRepository;
 import com.matjom.matjom.common.exception.base.FeedException;
 import com.matjom.matjom.common.exception.message.ErrorCode;
-import com.matjom.matjom.moderation.profanity.ProfanityFilter;
+import com.matjom.matjom.feed.dto.request.ReviewCreateRequestDTO;
+import com.matjom.matjom.feed.dto.request.ReviewUpdateRequestDTO;
+import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.entity.review.Review;
+import com.matjom.matjom.feed.repository.ReviewRepository;
+import com.matjom.matjom.feed.repository.UserReadRepository;
+import com.matjom.matjom.moderation.profanity.ProfanityFilter;
+import com.matjom.matjom.visit.service.VisitEligibilityChecker;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ReviewServiceTest {
@@ -35,10 +38,10 @@ class ReviewServiceTest {
     private VisitEligibilityChecker visitEligibilityChecker;
 
     @Mock
-    private ReviewResponseAssembler reviewResponseAssembler;
+    private ProfanityFilter profanityFilter;
 
     @Mock
-    private ProfanityFilter profanityFilter;
+    private UserReadRepository userReadRepository;
 
     @InjectMocks
     private ReviewService reviewService;
@@ -49,11 +52,8 @@ class ReviewServiceTest {
 
     @Test
     @DisplayName("도착하지 않았으면 리뷰 작성이 거부된다")
-    // 목적: ARRIVED 전 사용자에게 작성 기회를 주지 않는지 검증
-    // 상황: 방문 자격 검사에서 false를 반환하도록 모킹
-    // 기대: REVIEW_NOT_ALLOWED 예외가 발생하고 저장 로직은 실행되지 않는다
     void createReviewFailsWhenNotArrived() {
-        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(false);
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID)).willReturn(Optional.empty());
 
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "맛있어요");
 
@@ -61,16 +61,14 @@ class ReviewServiceTest {
                 () -> reviewService.createReview(USER_ID, request));
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED);
-        verify(reviewRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(reviewRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("이미 리뷰가 있을 때 중복 작성이 거부된다")
-    // 목적: 동일 방문에 대한 중복 작성 방지 로직 검증
-    // 상황: ARRIVED 상태지만 저장소에서 이미 존재한다고 응답하도록 세팅
-    // 기대: REVIEW_ALREADY_EXISTS 예외가 발생한다
     void createReviewFailsWhenAlreadyWritten() {
-        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID))
+                .willReturn(Optional.of(OffsetDateTime.now()));
         given(reviewRepository.existsByVisitId(VISIT_ID)).willReturn(true);
 
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "맛있어요");
@@ -83,34 +81,83 @@ class ReviewServiceTest {
 
     @Test
     @DisplayName("visitId 없이 요청하면 최신 ARRIVED 방문을 사용한다")
-    // 목적: 프런트가 visitId를 생략했을 때 자동 매칭이 동작하는지 검증
-    // 상황: 최신 ARRIVED 방문 ID를 리포지토리가 반환하도록 모킹하고 저장 결과를 검증
-    // 기대: 저장이 정상 수행되고 assembler가 호출된다
     void createReviewResolvesLatestVisitWhenNotProvided() {
         given(visitEligibilityChecker.findLatestArrivedVisitId(USER_ID, PLACE_ID))
                 .willReturn(Optional.of(VISIT_ID));
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID))
+                .willReturn(Optional.of(OffsetDateTime.now()));
         given(reviewRepository.existsByVisitId(VISIT_ID)).willReturn(false);
+        given(userReadRepository.findNameById(USER_ID)).willReturn(Optional.of("홍길동"));
         Review persisted = Review.builder()
                 .id(UUID.randomUUID())
                 .userId(USER_ID)
                 .placeId(PLACE_ID)
                 .visitId(VISIT_ID)
+                .userName("홍길동")
                 .text("맛있어요")
                 .build();
         given(reviewRepository.save(any(Review.class))).willReturn(persisted);
-        given(reviewResponseAssembler.toDto(persisted)).willReturn(
-                ReviewResponseDTO.builder()
-                        .reviewerName("사용자")
-                        .text("맛있어요")
-                        .createdAt(OffsetDateTime.now())
-                        .build()
-        );
 
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, null, "맛있어요");
 
         ReviewResponseDTO response = reviewService.createReview(USER_ID, request);
 
+        assertThat(response.getReviewerName()).isEqualTo("홍길동");
         assertThat(response.getText()).isEqualTo("맛있어요");
         verify(reviewRepository).save(any(Review.class));
+    }
+
+    @Test
+    @DisplayName("도착 후 24시간이 지나면 리뷰 작성이 거부된다")
+    void createReviewFailsAfter24Hours() {
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID))
+                .willReturn(Optional.of(OffsetDateTime.now().minusHours(25)));
+
+        ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "늦었어요");
+
+        FeedException exception = assertThrows(FeedException.class,
+                () -> reviewService.createReview(USER_ID, request));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED);
+    }
+
+    @Test
+    @DisplayName("리뷰 수정은 작성 후 24시간 이내에만 가능하다")
+    void updateReviewFailsAfter24Hours() {
+        Review review = Review.builder()
+                .id(UUID.randomUUID())
+                .userId(USER_ID)
+                .placeId(PLACE_ID)
+                .visitId(VISIT_ID)
+                .userName("홍길동")
+                .text("초기")
+                .build();
+        ReflectionTestUtils.setField(review, "createdAt", OffsetDateTime.now().minusHours(25));
+        given(reviewRepository.findById(review.getId())).willReturn(Optional.of(review));
+
+        FeedException exception = assertThrows(FeedException.class,
+                () -> reviewService.updateReview(USER_ID, review.getId(), new ReviewUpdateRequestDTO("수정")));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED);
+    }
+
+    @Test
+    @DisplayName("리뷰 수정은 24시간 내에는 정상 처리된다")
+    void updateReviewSucceedsWithin24Hours() {
+        Review review = Review.builder()
+                .id(UUID.randomUUID())
+                .userId(USER_ID)
+                .placeId(PLACE_ID)
+                .visitId(VISIT_ID)
+                .userName("홍길동")
+                .text("초기")
+                .build();
+        ReflectionTestUtils.setField(review, "createdAt", OffsetDateTime.now().minusHours(2));
+        given(reviewRepository.findById(review.getId())).willReturn(Optional.of(review));
+
+        ReviewResponseDTO response = reviewService.updateReview(USER_ID, review.getId(), new ReviewUpdateRequestDTO("수정"));
+
+        assertThat(response.getText()).isEqualTo("수정");
+        assertThat(review.getText()).isEqualTo("수정");
     }
 }

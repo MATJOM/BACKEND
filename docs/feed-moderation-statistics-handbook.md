@@ -52,18 +52,18 @@ Feed 패키지는 사용자가 음식점 방문 기록(`visit`)을 바탕으로 
 
 | 레이어 | 클래스 | 역할 |
 | ------ | ------ | ---- |
-| Controller | `ReviewController`, `DailyLikeController` | HTTP 요청 바인딩, 사용자 UUID 추출, 서비스 호출 |
-| Service | `ReviewService`, `DailyLikeService` | 비즈니스 로직, 검증, 엔티티 조립 |
+| Controller | `ReviewController`, `LikeController`, `VisitController` | HTTP 요청 바인딩, 사용자 UUID 추출, 서비스 호출 |
+| Service | `ReviewService`, `LikeService`, `VisitHistoryService` | 비즈니스 로직, 검증, 엔티티 조립 |
 | Helper | `VisitEligibilityChecker` | 리뷰/좋아요 공통 방침(ARRIVED 여부) 재사용 |
-| Repository | `ReviewRepository`, `DailyLikeRepository`, `VisitReadRepository`, `UserReadRepository` | 데이터 접근 |
-| DTO | `ReviewResponseDTO`, `ReviewCreateRequestDTO`, `DailyLikeCreateRequestDTO` 외 | 컨트롤러 ↔ 서비스 ↔ 프런트 데이터 계약 |
+| Repository | `ReviewRepository`, `LikeRepository`, `VisitReadRepository`, `UserReadRepository` | 데이터 접근 |
+| DTO | `ReviewResponseDTO`, `ReviewCreateRequestDTO`, `LikeCreateRequestDTO`, `LikeStatusResponseDTO`, `VisitCardResponseDTO` 외 | 컨트롤러 ↔ 서비스 ↔ 프런트 데이터 계약 |
 
 ### 2.3 방문 자격 검증 – “ARRIVED” 여부만 본다
 
 리뷰와 좋아요는 모두 방문이 실제 완료되었을 때만 허용됩니다. 이를 위해 두 서비스는 공통 헬퍼 `VisitEligibilityChecker`를 의존합니다.
 
 ```java
-// src/main/java/com/matjom/matjom/feed/service/VisitEligibilityChecker.java
+// src/main/java/com/matjom/matjom/visit/service/VisitEligibilityChecker.java
 @Component
 @RequiredArgsConstructor
 public class VisitEligibilityChecker {
@@ -90,7 +90,7 @@ public class VisitEligibilityChecker {
 리포지토리 구현은 아래와 같이 `SELECT CASE WHEN COUNT > 0` 쿼리를 사용합니다. 이렇게 하면 JPA가 `Visit` 엔티티의 다른 필드(좌표, 메타 JSON 등)를 전혀 로딩하지 않아도 되므로 최소 비용으로 자격을 판정할 수 있습니다.
 
 ```java
-// src/main/java/com/matjom/matjom/feed/repository/VisitReadRepository.java
+// src/main/java/com/matjom/matjom/visit/repository/VisitReadRepository.java
 @Query("""
         SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END
         FROM Visit v
@@ -302,7 +302,7 @@ export default function PlaceDetailPage({ placeId, visitId }: { placeId: number;
           {data.liked ? '👍 좋아요 취소' : '👍 좋아요'}
         </button>
       </div>
-      <PlaceStats stats={data.statistics} />
+      <StatsPanel stats={data.statistics} />
       <ReviewList reviews={data.reviews} />
     </section>
   );
@@ -363,7 +363,7 @@ private boolean hasBlacklistedWord(String text) {
 2. **리뷰 존재 확인**: `ReviewRepository.existsByIdAndDeletedAtIsNull`을 호출해 삭제된 리뷰가 아닌지 확인합니다.
 3. **신고 저장**: `ReviewReport` 엔티티를 생성해 신고 사유/설명을 저장합니다.
 4. **누적 3회 이상이면 자동 삭제**: `ReviewRepository.findById`로 리뷰를 불러와 `markDeleted()` 처리합니다.
-5. **응답**: 성공 여부만 돌려주고, 프런트는 “신고가 완료되었습니다. 신고 내용은 관리자에게 전달되었고, 확인 후 조치 예정입니다.” 같은 고정 문구를 자체적으로 보여주면 됩니다.
+5. **응답**: 성공 여부만 돌려주고, 프런트는 “신고가 접수되었습니다.” 같은 고정 문구를 자체적으로 보여주면 됩니다.
 
 ```java
 // src/main/java/com/matjom/matjom/moderation/report/service/ReviewModerationService.java
@@ -399,7 +399,7 @@ async function handleReport(reviewId: string, payload: { reason: string; descrip
     );
 
     if (response.data.success) {
-      toast.success('신고가 완료되었습니다. 신고 내용은 관리자에게 전달되었고, 확인 후 조치 예정입니다.');
+      toast.success('신고가 접수되었습니다.');
     } else {
       toast.error(response.data.error?.message ?? '신고 처리 중 문제가 발생했습니다.');
     }
@@ -419,7 +419,7 @@ async function handleReport(reviewId: string, payload: { reason: string; descrip
 - 요청: `POST /api/v1/reviews/{reviewId}/reports`
 - 요청 바디: `reason`(필수 ENUM), `description`(선택)
 - 응답: 본문 없이 성공 여부만 반환 (`ApiResponse.ok()`)
-- 프런트는 “신고가 완료되었습니다. 신고 내용은 관리자에게 전달되었고, 확인 후 조치 예정입니다.” 같은 문구를 자체적으로 띄운다.
+- 프런트는 “신고가 접수되었습니다.” 같은 문구를 자체적으로 띄운다.
 
 ### 3.6 테스트 전략
 
@@ -437,56 +437,51 @@ async function handleReport(reviewId: string, payload: { reason: string; descrip
 
 ---
 
-## 4. Statistics 패키지 – 장소 통계와 배치
+## 4. Statistics 패키지 – 장소 통계
 
 ### 4.1 목표와 범위
 
 Statistics 패키지는 사용자에게 음식점의 전반적인 인기와 혼잡도를 판단할 수 있는 정보를 제공합니다. 주요 지표는 다음과 같습니다.
 
-- `totalVisitors`: 누적 방문자 수
-- `totalLikes`: 누적 좋아요 수
+- `totalVisitors`: 누적 방문자 수 (`visits.arrived_at` 기준)
+- `totalLikes`: 누적 좋아요 수 (`daily_likes.status = 'ACTIVE'`)
 - `hourlyArrivals`: 11시부터 20시까지 시간대별 최근 14일 평균 도착 인원 배열
 
-또한 자정 배치 구조를 갖추고 있어 향후 실시간 추천, 혼잡도 예측으로 확장할 수 있는 기반을 제공합니다. *(2025-09-30 기준으로 Redis 캐시는 사용하지 않으며, 통계는 매 요청 시 DB 스냅샷을 직접 반환합니다.)*
+모든 지표는 매 요청 시 DB 스냅샷으로 계산하며 별도 캐시·배치 과정은 존재하지 않습니다.
 
 ### 4.2 구성요소 지도
 
 | 레이어 | 클래스 | 설명 |
 | ------ | ------ | ---- |
-| Controller | `PlaceStatisticsController`, `DailyStatsBatchController` | 통계 조회, 배치 트리거 |
-| Service | `PlaceStatisticsService`, `DailyStatsBatchService`, `DailyStatsBatchScheduler` | 실시간 조회, 배치 집계 |
-| Repository | `PlaceStatisticsRepository`, `PlaceDailyStatsReadRepository`, `PlaceDailyStatsBatchRepository` | 통계 스냅샷/집계 쿼리 |
-| DTO | `PlaceStatsResponseDTO`, `PlaceStatsSnapshot` | 응답 구조 |
+| Controller | `StatisticsController` | `/api/places/{placeId}/stats` 응답 |
+| Service | `StatisticsService` | 장소 존재 검증 + 통계 스냅샷 조합 |
+| Repository | `StatisticsRepository` | 누적/시간대별 통계 네이티브 쿼리 |
+| DTO | `StatsResponseDTO`, `StatsSnapshot` | 응답 구조, 변환 전용 스냅샷 |
 
 ### 4.3 실시간 통계 조회 시퀀스
 
 1. **컨트롤러 호출**: `GET /api/places/{placeId}/stats`
-2. **서비스 호출**: `PlaceStatisticsService.fetchPlaceStats(placeId)`
+2. **서비스 호출**: `StatisticsService.fetchStats(placeId)`
    - (a) `PlaceReadRepository.findNameById(placeId)`로 장소 존재 여부 및 이름 확보
-   - (b) `PlaceStatisticsRepository.fetchSnapshot(placeId, 기준일)`로 DB 스냅샷 조회
-   - (c) `PlaceStatsResponseDTO.of(...)`로 DTO 작성
+   - (b) `StatisticsRepository.fetchSnapshot(placeId, 현재일)`로 DB 스냅샷 조회
+   - (c) `StatsResponseDTO.of(...)`로 DTO 작성
 3. **응답 반환**: 최종 DTO를 프런트에 전달
 
-### 4.4 PlaceStatsSnapshot과 DB 쿼리
+### 4.4 StatsSnapshot과 DB 쿼리
 
-- `PlaceStatisticsRepository.fetchSnapshot`은 방문(`visits`), 좋아요(`daily_likes`) 테이블에서 누적치를 계산하고, 11~20시 모든 시간대에 대해 최근 14일 평균 도착 인원을 직접 집계합니다.
-- 반환 타입 `PlaceStatsSnapshot`은 Storage 로직을 서비스에 노출하지 않고 DTO 변환만 담당합니다.
+- `StatisticsRepository.fetchSnapshot`은 방문(`visits`)·좋아요(`daily_likes`)에서 누적치를 계산하고, 11~20시 모든 시간대에 대해 최근 14일 평균 도착 인원을 직접 집계한다.
+- 반환 타입 `StatsSnapshot`은 Storage 로직을 서비스에 노출하지 않고 DTO 변환만 담당한다.
 
 ```java
-// src/main/java/com/matjom/matjom/statistics/dto/PlaceStatsSnapshot.java
-public record PlaceStatsSnapshot(
+// src/main/java/com/matjom/matjom/statistics/dto/StatsSnapshot.java
+public record StatsSnapshot(
         long totalVisitors,
         long totalLikes,
         Map<Integer, Long> hourlyArrivals
 ) {}
 ```
 
-### 4.5 배치
-
-- `DailyStatsBatchScheduler`는 `@Scheduled(cron = "0 0 0 * * *", zone = "Asia/Seoul")`로 매일 00시 KST에 실행됩니다.
-- 배치 서비스는 전일 방문/리뷰/좋아요 수를 `place_daily_stats`에 집계하고, 추후 캐시가 도입될 경우 무효화 훅을 연결할 수 있도록 구조를 유지하고 있습니다.
-
-### 4.6 통계 응답 계약
+### 4.5 통계 응답 계약
 
 ```json
 {
@@ -514,11 +509,9 @@ public record PlaceStatsSnapshot(
 
 | 엔드포인트 | 요청 DTO | 주요 요청 필드 | 응답 DTO | 주요 응답 필드 |
 | ----------- | --------- | -------------- | -------- | ---------------- |
-| `GET /api/places/{placeId}/stats` | - | 경로 변수 `placeId` | `ApiResponse<PlaceStatsResponseDTO>` | `placeName`, `totalVisitors`, `totalLikes`, `hourlyArrivals` |
-| `POST /api/batch/midnight-reset` (내부) | - | 본문 없음 | `ApiResponse<Void>` | 배치 실행 결과 |
-| `GET /api/batch/status/last` (내부) | - | 본문 없음 | `ApiResponse<DailyStatsBatchService.BatchStatus>` | 최근 배치 시각 등 |
+| `GET /api/places/{placeId}/stats` | - | 경로 변수 `placeId` | `ApiResponse<StatsResponseDTO>` | `placeName`, `totalVisitors`, `totalLikes`, `hourlyArrivals` |
 
-`PlaceStatsResponseDTO` 내부 필드 해석:
+`StatsResponseDTO` 내부 필드 해석:
 
 - `placeName`: 장소명 (프런트 표시용)
 - `totalVisitors`: 누적 방문자 수
@@ -532,9 +525,8 @@ public record PlaceStatsSnapshot(
 
 ### 4.9 테스트 전략
 
-- `PlaceStatisticsServiceTest`: Clock 주입, 장소 미존재 예외, 스냅샷 변환을 단위 테스트합니다.
-- `PlaceStatisticsControllerTest`: 컨트롤러가 새 응답 구조(`hourlyArrivals`)를 그대로 노출하는지 검증합니다.
-- `DailyStatsBatchServiceTest`: 집계 로직이 `place_daily_stats`에 올바른 값(JSON 포함)을 업서트하고 실행 상태를 기록하는지 확인합니다.
+- `StatisticsServiceTest`: Clock 주입, 장소 미존재 예외, 스냅샷 변환을 단위 테스트합니다.
+- `StatisticsControllerTest`: 컨트롤러가 응답 구조(`hourlyArrivals`)를 그대로 노출하는지 검증합니다.
 
 ---
 
@@ -583,8 +575,8 @@ Statistics ──▶ Feed (장소명 조회, 리뷰/좋아요 집계)
 ## 7. 운영 및 향후 확장 가이드
 
 1. **금칙어 관리**: 현재는 하드코딩된 블랙리스트를 사용합니다. 외부 서비스 연동이나 DB 기반 관리로 확장하려면 `ProfanityFilter` 구현체만 교체하면 됩니다.
-2. **신고 후 조치**: 누적 신고 건수가 일정 기준을 넘으면 운영자가 후속 조치를 취하도록 알림 시스템과 연계할 수 있습니다. API 응답의 `reportCount`는 사용자(신고자)에게도 투명성을 제공합니다.
-3. **통계 확장**: `PlaceStatsSnapshot`에 새 필드를 추가하면 DTO와 프런트 코드를 함께 수정해야 합니다. 변경 시 본 핸드북과 `docs/uc-stat-01-api.md`, `statistics-task-plan.md`를 함께 업데이트하세요.
+2. **신고 후 조치**: 누적 신고 건수가 3건 이상 누적되면 서비스가 자동으로 리뷰를 삭제합니다. 필요하면 추가 알림 시스템과 연계해 운영자에게 전달할 수 있습니다.
+3. **통계 확장**: `StatsSnapshot`에 새 필드를 추가하면 DTO와 프런트 코드를 함께 수정해야 합니다. 변경 시 본 핸드북과 `docs/uc-stat-01-api.md`, `statistics-task-plan.md`를 함께 업데이트하세요.
 
 ---
 
@@ -615,7 +607,7 @@ Statistics ──▶ Feed (장소명 조회, 리뷰/좋아요 집계)
 
 **전문가 협의**
 
-- 도메인 설계 전문가: 이미 `VisitReadRepository`가 존재하며(`src/main/java/com/matjom/matjom/feed/repository/VisitReadRepository.java:10`), `existsByIdAndUserIdAndState` 하나로 ARRIVED 여부만 판정하도록 간결하게 짜여 있다. 새 저장소를 추가하기보다 이 구현을 그대로 활용·확장하는 편이 구조를 어지럽히지 않는다.
+- 도메인 설계 전문가: 이미 `VisitReadRepository`가 존재하며(`src/main/java/com/matjom/matjom/visit/repository/VisitReadRepository.java:10`), `existsByIdAndUserIdAndState` 하나로 ARRIVED 여부만 판정하도록 간결하게 짜여 있다. 새 저장소를 추가하기보다 이 구현을 그대로 활용·확장하는 편이 구조를 어지럽히지 않는다.
 - 데이터 레이어 전문가: 만약 팀장님이 제공할 정식 Visit 리포지토리를 아직 쓸 수 없다면, 동일한 시그니처로 임시 저장소를 두어도 JPA가 알아서 프록시를 만들어 주니 추가 구현이 사실상 필요 없다. 엔티티 전부를 읽어 오지 않고 EXISTS 형태라 성능도 충분하다.
 - QA 전문가: 현 구조를 유지하면 서비스·테스트가 이미 이 메서드 기반으로 정리돼 있어 회귀 위험이 없다. 새로운 저장소를 만들면 테스트와 문서를 다시 손봐야 하니 현재 구성을 유지하는 것이 안정적이다.
 

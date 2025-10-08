@@ -8,11 +8,11 @@
 - **인증**: JWT 기반 사용자 인증 (기존 Feed 서비스와 동일 흐름).
 
 ## 동작 흐름
-1. `PlaceStatisticsService`가 장소 존재 여부(`PlaceReadRepository#findNameById`)를 확인한다.
-2. `PlaceStatisticsRepository`가 DB에서 통계 스냅샷을 계산한다.
+1. `StatisticsService`가 장소 존재 여부(`PlaceReadRepository#findNameById`)를 확인한다.
+2. `StatisticsRepository`가 DB에서 통계 스냅샷을 계산한다.
    - `visits` 테이블에서 누적 도착(`arrived_at IS NOT NULL`) 인원과 11시~20시 모든 시간대에 대한 최근 14일(당일 포함) 평균 도착 인원을 구한다.
    - `daily_likes` 테이블에서 `status='ACTIVE'`인 좋아요 누적 수를 함께 반환한다.
-3. 계산된 스냅샷을 `PlaceStatsResponseDTO`로 변환해 API 응답으로 전달한다.
+3. 계산된 스냅샷을 `StatsResponseDTO`로 변환해 API 응답으로 전달한다.
 
 ## 응답 필드 정의
 | 필드 | 타입 | 설명 |

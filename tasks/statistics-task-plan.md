@@ -3,7 +3,7 @@
 ## UC-Stat-01: 음식점 종합 통계 조회
 - [x] 요구사항 확정
   - [x] 응답 필드(누적 방문·좋아요·시간대 평균) 정의 (9월 26일 최종)
-    - `docs/uc-stat-01-api.md`에 필드 테이블 추가, `PlaceStatsResponseDTO` 구조와 일치.
+    - `docs/uc-stat-01-api.md`에 필드 테이블 추가, `StatsResponseDTO` 구조와 일치.
   - [x] 시간대 지표 평균 기간 확정 (9월 30일 최종)
     - 11~20시 각 시간대 값은 최근 14일(당일 포함) 도착 인원 평균으로 노출.
   - [x] 통계 조회는 캐시 없이 DB 스냅샷을 직접 반환하도록 결정 (2025-09-30 개편)
@@ -40,7 +40,7 @@
   - [x] 통계 조회 Service (DB 스냅샷 반환) (9월 26일 최종 / 2025-09-30 개편)
   - [x] `GET /api/places/{placeId}/stats` Controller 및 유효성 검사 (9월 26일 최종)
 - [ ] DTO/응답 설계
-  - [x] `PlaceStatsResponseDTO` (9월 29일 최종)
+  - [x] `StatsResponseDTO` (9월 29일 최종 → 2025-10 명칭 정리)
     - 응답 필드에서 `placeId` 대신 `placeName`을 노출하도록 수정.
     - `generatedAt`/`cacheTtlSeconds`/`dataSource`는 `@JsonIgnore` 처리해 응답에는 숨기고 내부 로깅에만 활용.
   - [ ] 오류 응답 규격 점검
@@ -105,35 +105,26 @@
       updated_at = now(),
       last_aggregated_at = now();
   ```
-- [x] 데이터 집계 로직 (9월 26일 최종)
-  - [x] `visits`/`reviews`/`daily_likes`를 이용한 전일 통계 계산 쿼리
-  - [x] `place_daily_stats` UPSERT 구현
-- [x] 배치 API/상태 조회 (9월 26일 최종)
-  - [x] `POST /api/batch/midnight-reset` 내부 엔드포인트
-  - [x] `GET /api/batch/status/last` 최근 실행 결과 조회
-- [ ] 시간대 통계/예측 재학습
-  - [x] 시간대별 통계 계산 (9월 26일 최종)
-    - `DailyStatsBatchService`가 시간대별 지도(JSON)까지 집계하여 `place_daily_stats`에 저장.
-  - [x] 예측 모델 재학습 트리거 정의 (9월 26일 최종)
-    - `DailyStatsPredictionService.scheduleRetraining`으로 배치 결과 기반 재학습 훅 연결.
+- [x] 데이터 집계 로직 — *2025-10: 누적 스냅샷 단일 조회로 축소*
+  - [x] `visits`/`daily_likes`에서 누적 지표 계산
+  - [x] 11~20시 시간대 최근 14일 평균 도착 쿼리 확정
+- [ ] 예측 재학습 훅 — *배치 제거로 보류*
+  - [ ] 모델 연동 필요 시 별도 작업으로 분리 계획
 - [ ] 테스트
-  - [x] 단위 테스트: 집계 로직 (9월 26일 최종)
-  - [ ] 통합 테스트: 배치 실행 후 통계 업데이트 확인 (향후 Postgres 환경에서 수행 예정)
-  - [x] Scheduler 동작 검증(Mock 또는 실제 Trigger) (9월 26일 최종)
-- [x] 문서/운영 (9월 26일 최종)
-  - [x] 배치 운영 가이드 및 재실행 절차 문서화 (`docs/uc-batch-01-midnight-reset.md`, `docs/statistics-change-log.md`)
-  - [x] 모니터링 지표 정의 (9월 26일 최종)
-    - 기본 지표: 마지막 성공 시각(`place_daily_stats.last_aggregated_at`), 처리한 장소 수(`processedPlaces`), 배치 실행 소요 시간.
-    - 실패 모니터링: 예외 메시지/스택 로그 + 슬랙 알림, 캐시 무효화 실패 카운트.
+  - [x] 단위 테스트: 통계 스냅샷 (`StatisticsServiceTest`)
+  - [ ] 통합 테스트: Postgres 환경 준비 후 진행 예정
+- [x] 문서/운영 (2025-10 갱신)
+  - [x] `docs/statistics-change-log.md`, `docs/statistics-presentation.md`, `docs/feed-moderation-statistics-handbook.md` 최신화
+  - [x] 배치 관련 문서 제거
 
 ## 공통 마무리
 - [x] 전체 `./gradlew test` 통과 확인 (9월 28일 최종)
 - [ ] README/summary 문서 업데이트
 - [ ] Task 진행 상황을 `tasks/review-like-summary.md` 등 문서에 반영
 
-## Place Detail Facade (9월 30일 신규)
-- [x] 통합 응답 DTO 정의 (`PlaceDetailResponseDTO`) — `statistics` + `reviews` + `totalReviewCount` 묶음
-- [x] `PlaceDetailFacadeService`에서 통계/리뷰 서비스 조합, 기본 리뷰 노출 5건 제한
-- [x] `PlaceDetailController` (`GET /api/places/{placeId}/detail`) 추가, `reviewLimit` 쿼리 파라미터로 조절
-- [x] 단위 테스트: `PlaceDetailFacadeServiceTest` (limit 적용/리뷰 수 검증)
-- [x] 컨트롤러 테스트: `PlaceDetailControllerTest` (응답 구조 확인)
+## Place Detail (2025-10 정비)
+- [x] 통합 응답 DTO 정의 (`PlaceDetailResponseDTO`) — `info` + `stats` + `reviews` + `errors`
+- [x] `PlaceDetailService`에서 통계/리뷰 서비스 조합, 기본 리뷰 노출 15건 제한
+- [x] `PlaceController` (`GET /api/places/{placeId}`)에서 `reviewLimit` 쿼리 파라미터 위임
+- [x] 단위 테스트: `PlaceDetailServiceTest` (limit 적용/부분 실패 검증)
+- [x] 컨트롤러 테스트: `PlaceControllerTest` (응답 구조 확인)

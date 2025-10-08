@@ -37,6 +37,9 @@ public class Review extends BaseEntity {
     @Column(name = "visit_id", nullable = false, unique = true)
     private Long visitId;
 
+    @Column(name = "user_name", nullable = false, length = 50)
+    private String userName;
+
     @Column(name = "text", nullable = false, length = 140)
     @Setter
     private String text;

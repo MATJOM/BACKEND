@@ -113,13 +113,13 @@ paths:
   /api/v1/likes:
     post:
       summary: 좋아요 등록
-      tags: [DailyLikes]
+      tags: [Likes]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DailyLikeCreateRequest'
+              $ref: '#/components/schemas/LikeCreateRequest'
       responses:
         '200':
           $ref: '#/components/responses/SuccessVoid'
@@ -130,7 +130,7 @@ paths:
   /api/v1/likes/{likeId}:
     delete:
       summary: 좋아요 취소
-      tags: [DailyLikes]
+      tags: [Likes]
       parameters:
         - $ref: '#/components/parameters/LikeIdPath'
       responses:
@@ -140,7 +140,7 @@ paths:
           $ref: '#/components/responses/NotFound'
     put:
       summary: 좋아요 재활성화
-      tags: [DailyLikes]
+      tags: [Likes]
       parameters:
         - $ref: '#/components/parameters/LikeIdPath'
       responses:
@@ -168,7 +168,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ReportReviewResponse'
+                $ref: '#/components/schemas/ApiResponseSuccess'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -187,7 +187,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponsePlaceStats'
+                $ref: '#/components/schemas/ApiResponseStats'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -297,7 +297,7 @@ components:
         createdAt:
           type: string
           format: date-time
-    DailyLikeCreateRequest:
+    LikeCreateRequest:
       type: object
       properties:
         placeId:
@@ -320,37 +320,39 @@ components:
           type: string
           nullable: true
       required: [reason]
-    ReportReviewResponse:
-      type: object
-      properties:
-        reportId:
-          type: string
-          format: uuid
-        reason:
-          type: string
-        description:
-          type: string
-          nullable: true
-        reportedAt:
-          type: string
-          format: date-time
-        reportCount:
-          type: integer
-          format: int64
-    ApiResponsePlaceStats:
+    ApiResponseSuccess:
       type: object
       properties:
         success:
           type: boolean
           example: true
         data:
-          $ref: '#/components/schemas/PlaceStatsData'
+          nullable: true
+          type: object
+          description: 항상 null
+          example: null
+        error:
+          nullable: true
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-10-01T12:45:21.123Z"
+      required: [success, data, timestamp]
+    ApiResponseStats:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/StatsData'
         timestamp:
           type: string
           format: date-time
           example: "2025-09-30T08:30:00Z"
       required: [success, data, timestamp]
-    PlaceStatsData:
+    StatsData:
       type: object
       properties:
         placeName:

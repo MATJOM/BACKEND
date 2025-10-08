@@ -10,6 +10,9 @@ import com.matjom.matjom.feed.dto.request.ReviewCreateRequestDTO;
 import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.feed.entity.review.Review;
 import com.matjom.matjom.feed.repository.ReviewRepository;
+import com.matjom.matjom.feed.repository.UserReadRepository;
+import com.matjom.matjom.visit.service.VisitEligibilityChecker;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -34,17 +37,19 @@ class ReviewServiceIntegrationTest {
     @MockBean
     private VisitEligibilityChecker visitEligibilityChecker;
 
+    @MockBean
+    private UserReadRepository userReadRepository;
+
     private static final UUID USER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final Long PLACE_ID = 1L;
     private static final Long VISIT_ID = 10L;
 
     @Test
-    @DisplayName("리뷰 작성 성공 시 저장된다")
-    // 목적: 통합 환경에서 ARRIVED 조건을 충족하면 리뷰가 실제로 저장되는지 확인
-    // 상황: 자격 검증이 true를 반환하도록 모킹하고 저장소를 통해 결과를 조회
-    // 기대: 저장된 리뷰가 존재하고 응답 DTO와 동일한 정보를 담는다
+    @DisplayName("ARRIVED 조건을 통과하면 리뷰가 저장된다")
     void createReviewPersistsWhenEligible() {
-        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(true);
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID))
+                .willReturn(Optional.of(OffsetDateTime.now()));
+        given(userReadRepository.findNameById(USER_ID)).willReturn(Optional.of("홍길동"));
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "맛있어요");
 
         ReviewResponseDTO response = reviewService.createReview(USER_ID, request);
@@ -52,20 +57,34 @@ class ReviewServiceIntegrationTest {
         Optional<Review> saved = reviewRepository.findByVisitId(VISIT_ID);
         assertThat(saved).isPresent();
         assertThat(saved.get().getText()).isEqualTo("맛있어요");
-        assertThat(response.getReviewerName()).isNotBlank();
-        assertThat(response.getText()).isEqualTo("맛있어요");
+        assertThat(saved.get().getUserName()).isEqualTo("홍길동");
+        assertThat(response.getReviewerName()).isEqualTo("홍길동");
     }
 
     @Test
-    @DisplayName("방문 정보가 없으면 REVIEW_NOT_ALLOWED 예외")
-    // 목적: 통합 환경에서도 ARRIVED 조건 미충족 시 예외가 발생하는지 검증
-    // 상황: 자격 검증이 false를 반환하도록 설정
-    // 기대: REVIEW_NOT_ALLOWED 예외가 던져진다
+    @DisplayName("도착하지 않은 방문이면 REVIEW_NOT_ALLOWED")
     void createReviewFailsWhenVisitMissing() {
-        given(visitEligibilityChecker.isArrived(USER_ID, VISIT_ID)).willReturn(false);
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID)).willReturn(Optional.empty());
+        given(userReadRepository.findNameById(USER_ID)).willReturn(Optional.of("홍길동"));
         ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "맛없어요");
 
-        FeedException exception = assertThrows(FeedException.class, () -> reviewService.createReview(USER_ID, request));
+        FeedException exception = assertThrows(FeedException.class,
+                () -> reviewService.createReview(USER_ID, request));
+
+        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED);
+    }
+
+    @Test
+    @DisplayName("24시간이 지나면 리뷰 작성이 제한된다")
+    void createReviewFailsAfter24Hours() {
+        given(visitEligibilityChecker.findArrivedAt(USER_ID, VISIT_ID))
+                .willReturn(Optional.of(OffsetDateTime.now().minusHours(30)));
+        given(userReadRepository.findNameById(USER_ID)).willReturn(Optional.of("홍길동"));
+        ReviewCreateRequestDTO request = new ReviewCreateRequestDTO(PLACE_ID, VISIT_ID, "늦은 리뷰");
+
+        FeedException exception = assertThrows(FeedException.class,
+                () -> reviewService.createReview(USER_ID, request));
+
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED);
     }
 }

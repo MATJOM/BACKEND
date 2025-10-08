@@ -128,7 +128,7 @@ SPRING_JPA_HIBERNATE_DDL_AUTO=none \
    - 결과: `BUILD SUCCESSFUL` (경고는 `@MockBean` 관련 Deprecation)
    - 이전에 발생했던 FK 제약 오류가 사라졌는지 확인합니다.
 
-> **테스트 변경 사항**: 통합 테스트(`ReviewServiceIntegrationTest`, `DailyLikeServiceIntegrationTest`)는 고정 UUID를 사용하고, 응답의 사용자/장소 이름이 비어 있지 않은지만 검증하도록 업데이트되었습니다. 덕분에 H2/포스트그레 모두 동일 테스트 코드를 사용합니다.
+> **테스트 변경 사항**: 통합 테스트(`ReviewServiceIntegrationTest`, `LikeServiceIntegrationTest`)는 고정 UUID를 사용하고, 응답의 사용자/장소 이름이 비어 있지 않은지만 검증하도록 업데이트되었습니다. 덕분에 H2/포스트그레 모두 동일 테스트 코드를 사용합니다.
 
 ---
 
