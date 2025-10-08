@@ -1,18 +1,19 @@
 package com.matjom.matjom.common.security;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.UUID;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
 
 @Getter
 public class CustomUserDetails implements UserDetails {
 
     private final UUID userId;
-    private final String email;
-    private final String name;
+    private final String email;    // 로그인 식별자
+    private final String name;     // 사용자 이름
 
     public CustomUserDetails(UUID userId, String email, String name) {
         this.userId = userId;

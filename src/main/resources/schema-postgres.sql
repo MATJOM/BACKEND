@@ -15,6 +15,20 @@ CREATE TABLE IF NOT EXISTS users (
     )
 );
 
+CREATE TABLE IF NOT EXISTS deleted_users (
+    id UUID PRIMARY KEY,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    password TEXT,
+    provider VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ,
+    deleted_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT chk_deleted_user_password_required CHECK (
+        (provider = 'LOCAL' AND password IS NOT NULL) OR
+        (provider <> 'LOCAL' AND password IS NULL)
+    )
+);
 -- Places
 CREATE TABLE IF NOT EXISTS places (
     place_id BIGSERIAL PRIMARY KEY,
@@ -68,7 +82,7 @@ CREATE TABLE IF NOT EXISTS visits (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
-    CONSTRAINT fk_visits_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_visits_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_visits_place FOREIGN KEY (place_id) REFERENCES places(place_id),
     CONSTRAINT chk_visit_state CHECK (state IN ('ACTIVE', 'ARRIVED', 'EXPIRED', 'CANCELLED')),
     CONSTRAINT chk_visit_client_mode CHECK (client_mode IN ('NAVIGATION', 'IDLE'))
@@ -91,7 +105,7 @@ CREATE TABLE IF NOT EXISTS visit_positions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
-    CONSTRAINT fk_visit_positions_visit FOREIGN KEY (visit_id) REFERENCES visits(visit_id),
+    CONSTRAINT fk_visit_positions_visit FOREIGN KEY (visit_id) REFERENCES visits(visit_id) ON DELETE CASCADE,
     CONSTRAINT chk_visit_position_mode CHECK (mode IN ('NAVIGATION', 'IDLE'))
 );
 
@@ -107,7 +121,7 @@ CREATE TABLE IF NOT EXISTS user_place_first_arrivals (
     updated_at TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
     PRIMARY KEY (user_id, place_id),
-    CONSTRAINT fk_upfa_user FOREIGN KEY (user_id) REFERENCES users(id),
+    CONSTRAINT fk_upfa_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_upfa_place FOREIGN KEY (place_id) REFERENCES places(place_id)
 );
 
