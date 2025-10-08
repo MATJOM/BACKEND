@@ -12,15 +12,12 @@ import com.matjom.matjom.auth.service.LogoutService;
 import com.matjom.matjom.auth.service.ReissueService;
 import com.matjom.matjom.auth.service.SignUpService;
 import com.matjom.matjom.common.response.ApiResponse;
-import com.matjom.matjom.common.security.jwt.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,14 +32,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String REFRESH_COOKIE_NAME = "refreshToken";
 
     private final SignUpService signUpService;
     private final LoginService loginService;
     private final LogoutService logoutService;
     private final ReissueService reissueService;
     private final GoogleOAuthService googleOAuthService;
-    private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/signup")
     @Operation(summary = "로컬 회원가입", description = "이메일로 신규 가입하고 로그인 토큰을 발급한다.")
@@ -87,17 +82,9 @@ public class AuthController {
     }
 
     private ResponseEntity<ApiResponse<LoginResponse>> respondWithTokens(LoginResult result) {
-        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, result.getRefreshToken())
-                .path("/")
-                .httpOnly(true)
-                .secure(true)
-                .sameSite("Lax")
-                .maxAge(Duration.ofMillis(jwtTokenProvider.getRefreshTokenValidity()))
-                .build();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.AUTHORIZATION, BEARER_PREFIX + result.getAccessToken())
-                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                 .body(ApiResponse.ok(result.getResponse()));
     }
 }

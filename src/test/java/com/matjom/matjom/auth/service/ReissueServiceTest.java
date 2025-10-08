@@ -70,14 +70,15 @@ class ReissueServiceTest {
 
         LoginResult result = reissueService.reissue(ACCESS_TOKEN, REFRESH_TOKEN);
 
-        assertThat(result.getAccessToken()).isEqualTo(NEW_ACCESS_TOKEN);               // 새 액세스 토큰이 담긴다.
-        assertThat(result.getRefreshToken()).isEqualTo(NEW_REFRESH_TOKEN);             // 새 리프레시 토큰이 담긴다.
+        assertThat(result.getAccessToken()).isEqualTo(NEW_ACCESS_TOKEN);              // 새 액세스 토큰이 담긴다.
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo(NEW_REFRESH_TOKEN);             // 새 리프레시 토큰이 담긴다.
         assertThat(result.getResponse().getName()).isEqualTo("User");                 // 응답 이름이 유지된다.
-        verify(refreshTokenRepository).save(USER_ID, NEW_REFRESH_TOKEN);               // 새 리프레시 토큰이 저장된다.
+        verify(refreshTokenRepository).save(USER_ID, NEW_REFRESH_TOKEN);              // 새 리프레시 토큰이 저장된다.
         verify(tokenBlacklistRepository).save(ACCESS_TOKEN, TTL);                     // 기존 토큰은 블랙리스트에 등록된다.
     }
 
     // 저장된 리프레시 토큰이 다르면 예외를 던진다.
+
     @Test
     void reissue_throwsWhenRefreshTokenMismatch() {
         when(jwtTokenProvider.getUserId(ACCESS_TOKEN)).thenReturn(USER_ID);

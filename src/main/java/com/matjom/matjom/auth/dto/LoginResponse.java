@@ -9,10 +9,12 @@ import lombok.Getter;
 public class LoginResponse {
 
     private String name;
+    private String refreshToken;
 
-    public static LoginResponse from(User user) {
+    public static LoginResponse from(User user, String refreshToken) {
         return LoginResponse.builder()
                 .name(user.getName())
+                .refreshToken(refreshToken)
                 .build();
     }
 }

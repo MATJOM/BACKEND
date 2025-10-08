@@ -60,10 +60,13 @@ class SignUpServiceTest {
         // Given
         when(userRepository.findByEmailAndProvider(EMAIL, AuthProvider.LOCAL)).thenReturn(java.util.Optional.empty());
         when(passwordEncoder.encode(PASSWORD)).thenReturn(ENCODED_PASSWORD);
+        LoginResponse expectedResponse = LoginResponse.builder()
+                .name(NAME)
+                .refreshToken("refresh-token")
+                .build();
         LoginResult expected = LoginResult.from(
                 "access-token",
-                "refresh-token",
-                LoginResponse.builder().name(NAME).build()
+                expectedResponse
         );
         when(loginService.issueTokens(any(User.class))).thenReturn(expected);
 
@@ -71,8 +74,8 @@ class SignUpServiceTest {
         LoginResult result = signUpService.signUp(request);
 
         // Then
-        assertThat(result.getAccessToken()).isEqualTo("access-token");                 // 액세스 토큰이 그대로 반환된다.
-        assertThat(result.getRefreshToken()).isEqualTo("refresh-token");               // 리프레시 토큰이 함께 반환된다.
+        assertThat(result.getAccessToken()).isEqualTo("access-token");                  // 액세스 토큰이 그대로 반환된다.
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo("refresh-token");  // 리프레시 토큰이 함께 반환된다.
         assertThat(result.getResponse().getName()).isEqualTo(NAME);                     // 응답에 가입자가 표시된다.
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);              // 저장된 사용자 정보를 검증한다.

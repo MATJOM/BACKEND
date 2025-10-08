@@ -79,15 +79,16 @@ class LoginServiceTest {
         LoginResult result = loginService.login(request);
 
         assertThat(result.getAccessToken()).isEqualTo(ACCESS_TOKEN);                  // 액세스 토큰이 반환된다.
-        assertThat(result.getRefreshToken()).isEqualTo(REFRESH_TOKEN);                // 리프레시 토큰이 함께 반환된다.
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo(REFRESH_TOKEN);  // 리프레시 토큰이 함께 반환된다.
         assertThat(result.getResponse().getName()).isEqualTo(NAME);                  // 응답 본문에 사용자 이름이 담긴다.
         verify(passwordEncoder).matches(RAW_PASSWORD, ENCODED_PASSWORD);             // 비밀번호 검증이 수행된다.
-        verify(refreshTokenRepository).save(USER_ID, REFRESH_TOKEN);                  // 리프레시 토큰이 저장된다.
+        verify(refreshTokenRepository).save(USER_ID, REFRESH_TOKEN);                 // 리프레시 토큰이 저장된다.
         verify(loginRateLimiter).reset(EMAIL);                                       // 실패 횟수가 초기화된다.
         verify(loginRateLimiter).isLimitReached(EMAIL);                              // 차단 여부를 조회한다.
     }
 
     // 이미 차단된 경우 즉시 예외를 던진다.
+
     @Test
     void login_blocked_whenLimitAlreadyReached() {
         LoginRequest request = createRequest();
@@ -139,7 +140,7 @@ class LoginServiceTest {
 
         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS); // 인증 실패 코드가 반환된다.
         verify(passwordEncoder).matches(RAW_PASSWORD, ENCODED_PASSWORD);              // 비밀번호 검증이 시도된다.
-        verify(loginRateLimiter).recordFailure(EMAIL);                                // 실패 횟수가 증가한다.
+        verify(loginRateLimiter).recordFailure(EMAIL);                                // 실패 횟수가 증가한다..
         verify(loginRateLimiter, times(2)).isLimitReached(EMAIL);                     // 차단 여부를 두 번 확인한다.
         verify(loginRateLimiter, never()).getRemainingSeconds(EMAIL);                 // 남은 시간은 조회하지 않는다.
         verify(loginRateLimiter, never()).reset(EMAIL);                               // 초기화도 수행되지 않는다.
@@ -147,6 +148,7 @@ class LoginServiceTest {
     }
 
     // 비밀번호가 반복해서 틀리면 차단 예외를 던진다.
+
     @Test
     void login_invalidPassword_triggersLimitExceededResponse() {
         LoginRequest request = createRequest();
@@ -164,11 +166,14 @@ class LoginServiceTest {
         verify(loginRateLimiter, times(2)).isLimitReached(EMAIL);                     // 차단 여부를 두 번 확인한다.
         verify(loginRateLimiter).getRemainingSeconds(EMAIL);                          // 남은 시간을 조회한다.
         verify(loginRateLimiter, never()).reset(EMAIL);                               // 초기화는 수행되지 않는다.
+
         verifyNoInteractions(refreshTokenRepository);
     }
 
     private LoginRequest createRequest() {
+
         LoginRequest request = new LoginRequest();                                    // Helper: 로그인 요청을 생성한다.
+
         request.setEmail(EMAIL);
         request.setPassword(RAW_PASSWORD);
         return request;

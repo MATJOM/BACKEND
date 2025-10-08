@@ -57,10 +57,13 @@ class GoogleOAuthServiceTest {
         request = new GoogleOAuthRequest();
         request.setIdToken(ID_TOKEN);
 
+        LoginResponse expectedResponse = LoginResponse.builder()
+                .name(NAME)
+                .refreshToken("refresh-token")
+                .build();
         loginResult = LoginResult.from(
                 "access-token",
-                "refresh-token",
-                LoginResponse.builder().name(NAME).build()
+                expectedResponse
         );
     }
 
@@ -82,18 +85,18 @@ class GoogleOAuthServiceTest {
 
         // Then
         assertThat(result.getAccessToken()).isEqualTo("access-token");                 // 액세스 토큰이 반환된다.
-        assertThat(result.getRefreshToken()).isEqualTo("refresh-token");               // 리프레시 토큰이 함께 반환된다.
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo("refresh-token");               // 리프레시 토큰이 함께 반환된다.
         assertThat(result.getResponse().getName()).isEqualTo(NAME);                     // 응답에 이름이 포함된다.
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);              // 저장된 사용자 정보를 검증한다.
         verify(userRepository).save(captor.capture());
         User saved = captor.getValue();
         assertThat(saved.getEmail()).isEqualTo(EMAIL);                                  // 이메일이 프로필과 동일하다.
-        assertThat(saved.getName()).isEqualTo(NAME);                                    // 이름이 프로필과 동일하다.
+        assertThat(saved.getName()).isEqualTo(NAME);                                     // 이름이 프로필과 동일하다.
         assertThat(saved.getProvider()).isEqualTo(AuthProvider.GOOGLE);                // 공급자가 GOOGLE 로 저장된다.
         verify(loginService).issueTokens(saved);                                       // 신규 사용자로 토큰 발급이 이루어진다.
     }
-
+  
     // 기존 계정이 있으면 그대로 사용하고 추가 저장은 하지 않는다.
     @Test
     void signIn_reusesExistingUser() {
@@ -109,10 +112,11 @@ class GoogleOAuthServiceTest {
 
         // Then
         assertThat(result.getAccessToken()).isEqualTo("access-token");                 // 액세스 토큰이 전달된다.
-        assertThat(result.getRefreshToken()).isEqualTo("refresh-token");               // 리프레시 토큰이 전달된다.
+        assertThat(result.getResponse().getRefreshToken()).isEqualTo("refresh-token");               // 리프레시 토큰이 전달된다.
         assertThat(result.getResponse().getName()).isEqualTo(NAME);                     // 응답 이름은 토큰 결과 기준이다.
         verify(userRepository, never()).save(Mockito.any());                            // 추가 저장이 발생하지 않는다.
         verify(loginService).issueTokens(existingUser);                                 // 기존 사용자로 토큰 발급이 호출된다.
+
     }
 
     private void setId(User user, UUID id) {
