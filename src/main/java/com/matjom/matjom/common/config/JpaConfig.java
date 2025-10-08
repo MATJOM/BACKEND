@@ -10,7 +10,7 @@ import org.springframework.data.auditing.DateTimeProvider;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @Configuration
-@EnableJpaAuditing
+@EnableJpaAuditing(dateTimeProviderRef = "offsetDateTimeProvider")
 public class JpaConfig {
 
     @Bean
@@ -21,5 +21,10 @@ public class JpaConfig {
                 return Optional.of(OffsetDateTime.now(ZoneId.of("Asia/Seoul")));
             }
         };
+    }
+
+    @Bean
+    public DateTimeProvider offsetDateTimeProvider() {
+        return () -> Optional.of(OffsetDateTime.now(ZoneId.of("Asia/Seoul")));
     }
 }

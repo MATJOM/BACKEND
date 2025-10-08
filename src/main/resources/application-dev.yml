@@ -52,3 +52,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+oauth:
+  google:
+    token-info-endpoint: https://oauth2.googleapis.com/tokeninfo
+    allowed-client-ids:
+      - 407408718192.apps.googleusercontent.com
