@@ -8,9 +8,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.matjom.matjom.common.security.jwt.JwtAuthenticationFilter;
+import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.place.dto.PlaceDetailResponseDTO;
 import com.matjom.matjom.place.dto.PlaceInfoDTO;
-import com.matjom.matjom.feed.dto.response.ReviewResponseDTO;
 import com.matjom.matjom.place.service.PlaceDetailService;
 import com.matjom.matjom.statistics.dto.StatsResponseDTO;
 import java.time.OffsetDateTime;
@@ -33,6 +34,9 @@ class PlaceControllerTest {
 
     @MockBean
     private PlaceDetailService placeDetailService;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     // 컨트롤러가 Service 응답을 그대로 전달하고 reviewLimit 파라미터를 위임하는지 확인한다.

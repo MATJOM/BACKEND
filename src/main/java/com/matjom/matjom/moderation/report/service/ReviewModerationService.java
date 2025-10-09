@@ -25,7 +25,7 @@ public class ReviewModerationService {
                              UUID reporterId,
                              ReportReviewRequestDTO request) {
         if (reviewReportRepository.existsByReviewIdAndReporterId(reviewId, reporterId)) {
-            throw new FeedException(ErrorCode.REVIEW_REPORT_ALREADY_EXISTS, "이미 신고한 리뷰입니다.");
+            throw new FeedException(ErrorCode.REVIEW_ALREADY_EXISTS, "이미 신고한 리뷰입니다.");
         }
         if (!reviewRepository.existsByIdAndDeletedAtIsNull(reviewId)) {
             throw new FeedException(ErrorCode.REVIEW_NOT_FOUND, "리뷰를 찾을 수 없습니다.");

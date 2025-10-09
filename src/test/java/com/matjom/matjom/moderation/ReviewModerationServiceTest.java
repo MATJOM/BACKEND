@@ -48,7 +48,7 @@ class ReviewModerationServiceTest {
                         ReportReviewRequestDTO.builder().reason(ReportReason.SPAM).build()))
                 .isInstanceOf(FeedException.class)
                 .extracting("errorCode")
-                .isEqualTo(ErrorCode.REVIEW_REPORT_ALREADY_EXISTS);
+                .isEqualTo(ErrorCode.REVIEW_ALREADY_EXISTS);
     }
 
     @Test

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.matjom.matjom.common.security.jwt.JwtAuthenticationFilter;
 import com.matjom.matjom.statistics.dto.StatsResponseDTO;
 import com.matjom.matjom.statistics.dto.StatsSnapshot;
 import com.matjom.matjom.statistics.service.StatisticsService;
@@ -29,6 +30,9 @@ class StatisticsControllerTest {
 
     @MockBean
     private StatisticsService statisticsService;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     // 컨트롤러가 서비스 응답을 그대로 전달하고 JSON 필드가 기대와 일치하는지 검증한다.

@@ -54,7 +54,7 @@ dependencies {
     //implementation 'org.flywaydb:flyway-core'    // DB 스키마 버전 관리
 
     // ======= API 문서(Swagger/OpenAPI) =======
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0' // Swagger UI 제공
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0' // Swagger UI 제공
 
     // ======= 로그(Logstash Encoder) =======
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4' // JSON 로그(ELK 연동)

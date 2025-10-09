@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -38,8 +39,10 @@ public class SecurityConfig {
                                 "/api/auth/oauth/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui.html")
+                                "/swagger-ui.html",
+                                "/h2-console/**")
                         .permitAll()
+                        .requestMatchers(PathRequest.toH2Console()).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -48,6 +51,10 @@ public class SecurityConfig {
         if (Arrays.asList(env.getActiveProfiles()).contains("prod")) {
             http.requiresChannel(channel -> channel.anyRequest().requiresSecure())
                     .redirectToHttps(Customizer.withDefaults());
+        }
+
+        if (Arrays.asList(env.getActiveProfiles()).contains("local")) {
+            http.headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
         }
 
         return http.build();
