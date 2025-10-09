@@ -47,6 +47,7 @@ public enum ErrorCode {
 
     // ====== Feed ======
     REVIEW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "리뷰 작성이 허용되지 않습니다."),
+    REVIEW_NOT_FOUND(HttpStatus.BAD_REQUEST, "리뷰를 찾을 수 없습니다"),
     REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 리뷰를 작성했습니다."),
     REVIEW_BAD_LANGUAGE(HttpStatus.BAD_REQUEST, "부적절한 표현이 감지되었습니다."),
     LIKE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "좋아요를 누를 수 없습니다."),
