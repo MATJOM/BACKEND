@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS reviews (
     user_id UUID NOT NULL,
     place_id BIGINT NOT NULL,
     visit_id BIGINT NOT NULL,
+    user_name VARCHAR(50) NOT NULL,
     text VARCHAR(140) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(), -- 9월 24일 수정: BaseEntity 표준
     updated_at TIMESTAMPTZ, -- 9월 24일 수정: BaseEntity 표준
