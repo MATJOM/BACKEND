@@ -77,7 +77,6 @@ class VisitSessionServiceTest {
     void startSessionCreatesNewVisit() {
         UUID userId = UUID.randomUUID();
         VisitSessionStartRequest request = new VisitSessionStartRequest();
-        request.setUserId(userId);
         request.setPlaceId(10L);
         request.setClientMode(ClientMode.NAVIGATION);
 
@@ -107,7 +106,7 @@ class VisitSessionServiceTest {
                     }
                 });
 
-        VisitSessionStartResponse response = visitSessionService.startSession(request, "start-key");
+        VisitSessionStartResponse response = visitSessionService.startSession(request, userId, "start-key");
 
         assertThat(response.sessionId()).isEqualTo(100L);
         assertThat(response.state()).isEqualTo(VisitState.ACTIVE);
@@ -119,7 +118,6 @@ class VisitSessionServiceTest {
     void startSessionThrowsWhenActiveExists() {
         UUID userId = UUID.randomUUID();
         VisitSessionStartRequest request = new VisitSessionStartRequest();
-        request.setUserId(userId);
         request.setPlaceId(20L);
 
         User user = new User("user2@test.com", "tester", "password", AuthProvider.LOCAL);
@@ -140,7 +138,7 @@ class VisitSessionServiceTest {
 
         boolean thrown = false;
         try {
-            visitSessionService.startSession(request, "dup-key");
+            visitSessionService.startSession(request, userId, "dup-key");
         } catch (SessionException expected) {
             thrown = true;
             assertThat(expected.getErrorCode()).isEqualTo(ErrorCode.SESSION_ALREADY_EXISTS);
@@ -152,7 +150,6 @@ class VisitSessionServiceTest {
     void startSessionReplayedResponseMarksFlag() {
         UUID userId = UUID.randomUUID();
         VisitSessionStartRequest request = new VisitSessionStartRequest();
-        request.setUserId(userId);
         request.setPlaceId(30L);
 
         OffsetDateTime startedAt = OffsetDateTime.now();
@@ -161,7 +158,7 @@ class VisitSessionServiceTest {
         when(idempotencyStore.replayOrRun(anyString(), anyString(), eq(VisitSessionStartResponse.class), any()))
                 .thenReturn(new IdempotencyResult<>(cached, true));
 
-        VisitSessionStartResponse response = visitSessionService.startSession(request, "replay-key");
+        VisitSessionStartResponse response = visitSessionService.startSession(request, userId, "replay-key");
 
         assertThat(response.sessionId()).isEqualTo(5L);
         assertThat(response.replayed()).isTrue();

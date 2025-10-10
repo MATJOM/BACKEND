@@ -1,19 +1,14 @@
 package com.matjom.matjom.visit.dto;
 
 import com.matjom.matjom.visit.entity.ClientMode;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.util.UUID;
-
 import lombok.Getter;
 import lombok.Setter;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Getter
 @Setter
 public class VisitSessionStartRequest {
-
-    @NotNull(message = "userId는 필수입니다.")
-    private UUID userId;
 
     @NotNull(message = "placeId는 필수입니다.")
     private Long placeId;

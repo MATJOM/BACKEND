@@ -28,6 +28,7 @@ import lombok.Setter;
 @SuppressWarnings("unused")
 @Entity
 @Getter
+// 주의: 공간 인덱스(GiST)는 @Index로 생성되지 않습니다. 아래 주석의 DDL을 운용에 반영하세요.
 @Table(name = "places", indexes = {
         @Index(name = "idx_places_provider_id", columnList = "provider_id"),
         @Index(name = "idx_places_addr_sido", columnList = "addr_sido"),
@@ -35,27 +36,30 @@ import lombok.Setter;
         @Index(name = "idx_places_addr_eupmyeondong", columnList = "addr_eupmyeondong")
 })
 public class Place extends BaseEntity {
-
+	// ====== 비즈니스 상수 & 헬퍼 ======
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
-    @Id
+
+	// ====== 식별자 ======
+	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "place_id")
     private Long id; // PK는 자동 증가(INT 혹은 BIGINT)
 
-    @Column(name = "name", nullable = false, length = 100)
-    private String name; // 장소명, 널 금지, 최대 100자
+	// ====== 표시/검색 기본 필드 ======
+	@Column(name = "name", nullable = false, length = 100)
+	private String name; // 장소명, 널 금지, 최대 100자
 
-    @Column(name = "lat", nullable = false, precision = 9, scale = 6)
-    private BigDecimal latitude; // 위도: 소수점 6자리까지 저장
+	@Column(name = "lat", nullable = false, precision = 9, scale = 6)
+	private BigDecimal latitude; // 위도: 소수점 6자리까지 저장
 
-    @Column(name = "lng", nullable = false, precision = 9, scale = 6)
-    private BigDecimal longitude; // 경도: precision/scale 동일
+	@Column(name = "lng", nullable = false, precision = 9, scale = 6)
+	private BigDecimal longitude; // 경도: precision/scale 동일
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "category", columnDefinition = "text[]", nullable = false)
-    private String[] category; // Postgres text[]와 매핑
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	@Column(name = "category", columnDefinition = "text[]", nullable = false)
+	private String[] category; // Postgres text[]와 매핑
 
-    @Column(name = "provider_id", nullable = false, length = 100)
+	@Column(name = "provider_id", nullable = false, length = 100)
     private String providerId; // 외부 데이터 공급자 고유 ID
 
     @Column(name = "phone_number", nullable = false, length = 20)
@@ -89,13 +93,18 @@ public class Place extends BaseEntity {
     private String addrEupmyeondong; // 읍/면/동
 
     @Column(name = "addr_street", nullable = false, length = 100)
-    private String addrStreet; // 도로명
+			private String addrStreet; // 도로명
 
     @Column(name = "addr_detail", nullable = false, length = 100)
     private String addrDetail; // 상세 주소
 
+	// ====== 지오 스패셜 정본(SSOT) ======
+	// [핵심 비즈니스 결정]
+	// - 정렬/커서/반경 판단은 **절대거리(m)** 기준이므로 PostGIS의 geography 타입을 사용.
+	// - geometry(4326)로도 구현 가능하지만, meter 일관성 확보 위해 geography 채택.
+	// - Hibernate 6.x: @JdbcTypeCode(SqlTypes.GEOMETRY) + columnDefinition으로 DB 타입을 정확히 지정.
     @Column(name = "location", columnDefinition = "geography(Point,4326)")
-    private Point location; // PostGIS geography 타입
+    private Point location; // 좌표는 반드시 (lng, lat) 순서, SRID=4326
 
     protected Place() {
         // JPA

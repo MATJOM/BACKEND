@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class RouletteService {
+	// [정책] 기본 반경/후보 상한(예시). “근처 한 끼” UX 기준.
 	// 반경/상한의 서비스 기본값들
     private static final double DEFAULT_RADIUS_METERS = 300.0;
     private static final int DEFAULT_LIMIT = 200;
@@ -46,9 +47,11 @@ public class RouletteService {
     public RouletteResponse recommend(final RouletteRequest request, String idempotencyKey) {
         Objects.requireNonNull(idempotencyKey, "idempotencyKey"); // 컨트롤러에서 보장하더라도 방어 코드
         String redisKey = IDEMPOTENCY_PREFIX + idempotencyKey;  		 // Redis 저장 키 prefix
-        String requestHash = computeRequestHash(request); 				 // 요청 본문을 SHA-256으로 해싱(충돌 방지)
+		// [1] 요청해시 생성: “같은 요청” 정의를 엄격히 하기 위해 JSON을 안정 직렬화하여 SHA-256으로 해시
+        String requestHash = computeRequestHash(request);
 
-        IdempotencyResult<RouletteResponse> result = idempotencyStore.replayOrRun(
+		// [2] 멱등 저장소 실행: 동일 key+hash가 있으면 재생, 없으면 콜백 수행
+		IdempotencyResult<RouletteResponse> result = idempotencyStore.replayOrRun(
                 redisKey,
                 requestHash,
                 RouletteResponse.class,
@@ -59,7 +62,7 @@ public class RouletteService {
                     }
                 }
         );
-
+		// [3] meta.replayed를 응답에 반영(UX: 스낵바 메시지/애니메이션 제어 근거)
         if (result.isReplayed()) {
             return markReplayed(result.getValue());
         }

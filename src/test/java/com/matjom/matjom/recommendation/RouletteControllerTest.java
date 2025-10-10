@@ -10,21 +10,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.matjom.matjom.common.exception.message.ErrorCode;
+import com.matjom.matjom.common.security.SecurityConfig;
 import com.matjom.matjom.recommendation.api.RouletteController;
 import com.matjom.matjom.recommendation.dto.RouletteRequest;
 import com.matjom.matjom.recommendation.dto.RouletteResponse;
 import java.util.List;
 import com.matjom.matjom.recommendation.service.RouletteService;
+import com.matjom.matjom.common.security.jwt.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.context.annotation.FilterType;
 
-@WebMvcTest(RouletteController.class)
+@WebMvcTest(
+        value = RouletteController.class,
+        excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SecurityConfig.class)
+)
 @AutoConfigureMockMvc(addFilters = false)
+@SuppressWarnings("removal")
 class RouletteControllerTest {
 
     @Autowired
@@ -33,9 +41,11 @@ class RouletteControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @SuppressWarnings("removal")
     @MockBean
     private RouletteService rouletteService;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     void returns400WhenIdempotencyKeyMissing() throws Exception {
