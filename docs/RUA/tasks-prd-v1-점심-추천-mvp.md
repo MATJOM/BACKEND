@@ -23,23 +23,23 @@
 - `src/main/resources/application.yml` - 반경/체류/간격/TTL/상한 등 파라미터 외부화.
 - `src/main/resources/schema-postgres.sql` - PostGIS 타입/인덱스 보강.
 - `docs/openapi/openapi-v1.yaml` - v1 스펙(커서/429/멱등/상한 500 안내) 반영.
-- `docs/RUA/explanations/session-lifecycle-main-issue.md` - 4.x 메인 이슈 및 서브 이슈 관리 문서.
-- `docs/RUA/explanations/session-lifecycle-task-guide.md` - 세션 라이프사이클 사전 학습 가이드.
-- `docs/RUA/explanations/session-lifecycle-delivery-summary.md` - 4.x 완료 후 결과 요약 템플릿.
-- `docs/RUA/explanations/session-lifecycle-issue-24-2-prep.md` - 4.2 위치 수신 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-2-impl.md` - 4.2 위치 수신 구현 요약.
-- `docs/RUA/explanations/session-lifecycle-issue-24-3-prep.md` - 4.3 GeoFenceEvaluator 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-3-impl.md` - 4.3 GeoFenceEvaluator 구현 요약.
-- `docs/RUA/explanations/session-lifecycle-issue-24-4-prep.md` - 4.4 정확도 가드 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-4-impl.md` - 4.4 정확도 가드 구현 요약.
-- `docs/RUA/explanations/session-lifecycle-issue-24-5-prep.md` - 4.5 수동 도착 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-5-impl.md` - 4.5 수동 도착 구현 요약.
-- `docs/RUA/explanations/session-lifecycle-issue-24-6-prep.md` - 4.6 타임아웃 스케줄러 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-6-impl.md` - 4.6 타임아웃 스케줄러 구현 요약.
-- `docs/RUA/explanations/session-lifecycle-issue-24-7-prep.md` - 4.7 상태 전이 이벤트 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-7-impl.md` - 4.7 상태 전이 이벤트 구현 요약.
-- `docs/RUA/explanations/session-lifecycle-issue-24-8-prep.md` - 4.8 경계 테스트 선행 학습 문서.
-- `docs/RUA/explanations/session-lifecycle-issue-24-8-impl.md` - 4.8 경계 테스트 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-main-issue.md` - 4.x 메인 이슈 및 서브 이슈 관리 문서.
+- `docs/RUA/task-notes/session-lifecycle-task-guide.md` - 세션 라이프사이클 사전 학습 가이드.
+- `docs/RUA/task-notes/session-lifecycle-delivery-summary.md` - 4.x 완료 후 결과 요약 템플릿.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-2-prep.md` - 4.2 위치 수신 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-2-impl.md` - 4.2 위치 수신 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-3-prep.md` - 4.3 GeoFenceEvaluator 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-3-impl.md` - 4.3 GeoFenceEvaluator 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-4-prep.md` - 4.4 정확도 가드 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-4-impl.md` - 4.4 정확도 가드 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-5-prep.md` - 4.5 수동 도착 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-5-impl.md` - 4.5 수동 도착 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-6-prep.md` - 4.6 타임아웃 스케줄러 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-6-impl.md` - 4.6 타임아웃 스케줄러 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-7-prep.md` - 4.7 상태 전이 이벤트 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-7-impl.md` - 4.7 상태 전이 이벤트 구현 요약.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-8-prep.md` - 4.8 경계 테스트 선행 학습 문서.
+- `docs/RUA/task-notes/session-lifecycle-issue-24-8-impl.md` - 4.8 경계 테스트 구현 요약.
 - `docs/RUA/future/visit-audit-metadata-guide.md` - Visit 감사 메타 적재 향후 적용 가이드.
 - `docs/RUA/future/visit-timeout-distributed-lock-guide.md` - 타임아웃 스케줄러 분산 락 향후 적용 가이드.
 - `docs/RUA/future/visit-expiration-event-guide.md` - 방문 만료 이벤트 기록·노출 향후 적용 가이드.

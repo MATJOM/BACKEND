@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 
 /**
  * [역할 정의 — 중요]
- * - 이 JPA 레포지토리는 **CRUD/관리성 조회** 전용입니다.
+ * - 이 JPA 레포지토리는 CRUD/관리성 조회 전용입니다.
  * - 제품의 핵심 기능인 **근처 탐색(반경/거리 정렬/커서 페이징)** 은
  *   PostGIS 연산이 필요한 관계로 `PlaceRepository`(JdbcTemplate + Native SQL)에서 처리합니다.
  *
