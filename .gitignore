@@ -54,3 +54,5 @@ out/
 logs/
 /.gradle-test-kit/
 /.gradle-home/
+.venv/
+tmp/
