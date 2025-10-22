@@ -12,10 +12,16 @@ import java.time.ZoneId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 장소 통계 비즈니스 로직을 담당하는 서비스 계층.
+ * 사용 목적: 컨트롤러 요청을 받아 장소 존재 여부를 확인하고 통계 데이터를 조합한다.
+ * 코드 의미: 장소 이름 조회, 통계 저장소 호출, DTO 변환 흐름을 하나의 트랜잭션으로 묶는다.
+ * 기대 결과: `/stats` API가 요청한 장소 ID에 대한 최신 통계를 안전하게 반환한다.
+ */
 @Service
 public class StatisticsService {
 
-    private static final ZoneId STATISTICS_ZONE_ID = ZoneId.of("Asia/Seoul"); // 9월 26일 최종: 일자 계산 기준 KST
+    private static final ZoneId STATISTICS_ZONE_ID = ZoneId.of("Asia/Seoul"); // 통계 일자 계산 기준 타임존(KST)
 
     private final PlaceReadRepository placeReadRepository;
     private final StatisticsRepository statisticsRepository;
@@ -29,7 +35,12 @@ public class StatisticsService {
         this.clock = clock;
     }
 
-    // 장소 존재 여부를 검증하고 최신 통계 스냅샷을 조회한 뒤 DTO로 만들어 반환한다.
+    /**
+     * 장소 존재 여부를 검증하고 최신 통계 스냅샷을 조회한 뒤 DTO로 만들어 반환한다.
+     * 사용 목적: 유효한 장소에 대해서만 통계 조회를 허용하고, 누락 시 명확한 예외를 던진다.
+     * 코드 의미: 장소 이름 조회 → 기준일 산출 → 통계 스냅샷 조회 → 응답 DTO 변환 순으로 처리한다.
+     * 기대 결과: 장소 이름과 누적/시간대 통계를 포함한 {@link StatsResponseDTO}를 반환한다.
+     */
     @Transactional(readOnly = true)
     public StatsResponseDTO fetchStats(Long placeId) {
         String placeName = placeReadRepository.findNameById(placeId)

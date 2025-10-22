@@ -10,6 +10,11 @@ import java.time.OffsetDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * 위치 샘플을 업로드할 때 사용하는 요청 DTO.
+ * 사용 목적: GPS 좌표, 정확도, 모드, 기록 시각을 검증해 세션 위치 업데이트에 사용한다.
+ * 코드 의미: 위·경도와 정확도 범위를 제한하고, 모드가 비어 있으면 NAVIGATION을 기본값으로 적용한다.
+ */
 @Getter
 @Setter
 public class VisitPositionRequest {

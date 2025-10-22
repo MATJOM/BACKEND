@@ -20,6 +20,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 리뷰 신고를 접수하는 moderation 컨트롤러.
+ * 사용 목적: 인증된 사용자가 리뷰 문제를 신고하도록 HTTP 엔드포인트를 제공한다.
+ * 코드 의미: 요청 파라미터/본문을 검증하고 서비스 계층을 호출한 뒤 공통 응답 포맷을 반환한다.
+ * 기대 결과: 신고 접수가 성공하면 HTTP 200 OK가 내려간다.
+ */
 @RestController
 @RequestMapping("/api/v1/reviews")
 @RequiredArgsConstructor
@@ -29,6 +35,12 @@ public class ReviewReportController {
 
     private final ReviewModerationService reviewModerationService;
 
+    /**
+     * 리뷰 신고를 접수한다.
+     * 사용 목적: 신고 사유와 설명을 받아 moderation 서비스로 전달한다.
+     * 코드 의미: 사용자 ID를 검증하고 DTO를 서비스에 넘긴 뒤 빈 응답을 감싼다.
+     * 기대 결과: 신고가 저장되면 성공 응답, 오류 시 예외가 발생한다.
+     */
     @Operation(summary = "리뷰 신고", description = "리뷰에 문제가 있는 경우 사유와 함께 신고합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신고 접수 성공"),
@@ -46,6 +58,12 @@ public class ReviewReportController {
         return ApiResponse.ok();
     }
 
+    /**
+     * 인증 정보에서 사용자 ID를 추출하고 검증한다.
+     * 사용 목적: Null 안전성을 확보해 모든 신고 요청에서 일관된 검증을 수행한다.
+     * 코드 의미: `Objects.requireNonNull`로 인증 객체와 userId 필드를 차례대로 확인한다.
+     * 기대 결과: 인증 정보가 누락되면 즉시 예외가 발생한다.
+     */
     private UUID requireUserId(CustomUserDetails user) {
         UUID userId = Objects.requireNonNull(user, "인증 정보가 필요합니다.").getUserId();
         return Objects.requireNonNull(userId, "사용자 ID가 필요합니다.");

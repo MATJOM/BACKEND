@@ -23,10 +23,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.matjom.matjom.support.PostgresIntegrationTest;
+
 @SpringBootTest
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-class LikeServiceIntegrationTest {
+class LikeServiceIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired
     private LikeService likeService;

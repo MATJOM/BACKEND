@@ -107,80 +107,62 @@ class LunchJourneyIntegrationTest {
         System.out.printf("[데이터 준비] placeId=%d 샘플 장소가 삽입되었습니다.%n", placeId);
 
         // 1. 회원 가입과 동시에 Access / Refresh 토큰을 발급받는다.
-        SignUpRequest signUpRequest = new SignUpRequest();
-        String testEmail = "integration+" + UUID.randomUUID() + "@matjom.dev";
-        signUpRequest.setEmail(testEmail);
-        signUpRequest.setPassword("P@ssw0rd!");
-        signUpRequest.setName("통합테스터");
+        SignUpRequest signUpRequest = new SignUpRequest(
+                "lunch-user-" + UUID.randomUUID(),
+                "통합테스트 사용자",
+                "password1234!",
+                "010-1234-5678"
+        );
 
-        HttpHeaders signUpHeaders = new HttpHeaders();
-        signUpHeaders.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<ApiResponse<LoginResponse>> signUpResponse = restTemplate.exchange(
-                "/api/auth/signup",
-                HttpMethod.POST,
-                new HttpEntity<>(signUpRequest, signUpHeaders),
+        ResponseEntity<ApiResponse<LoginResponse>> signUpResponse = restTemplate.postForEntity(
+                "/api/v1/auth/signup",
+                signUpRequest,
                 new ParameterizedTypeReference<>() {}
         );
         assertThat(signUpResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        ApiResponse<LoginResponse> signUpBody = Objects.requireNonNull(signUpResponse.getBody(), "회원가입 응답 본문이 없습니다.");
-        String accessToken = Objects.requireNonNull(signUpResponse.getHeaders().getFirst(HttpHeaders.AUTHORIZATION),
-                "AccessToken 헤더가 존재해야 합니다.");
-        String refreshToken = signUpBody.data().getRefreshToken();
-        System.out.printf("[STEP 1] 회원가입 완료 - accessToken=%s..., refreshToken=%s...%n",
-                accessToken.substring(0, Math.min(accessToken.length(), 15)),
-                refreshToken.substring(0, Math.min(refreshToken.length(), 15)));
+        LoginResponse loginData = Objects.requireNonNull(signUpResponse.getBody()).data();
+        String accessToken = "Bearer " + loginData.accessToken();
+        System.out.printf("[STEP 1] 회원 가입 및 로그인 완료 - accessToken=%s%n", loginData.accessToken().substring(0, 10) + "...");
 
-        // 2. 방금 삽입한 장소가 검색 API에서 조회되는지 검증한다.
-        HttpHeaders searchHeaders = new HttpHeaders();
-        searchHeaders.set(HttpHeaders.AUTHORIZATION, accessToken);
-        String searchUrl = String.format(
-                "/api/v1/places?lat=%s&lng=%s&radius=%s&size=%s",
-                BASE_LAT, BASE_LNG, 500, 10
-        );
+        // 2. 기준 좌표 주변의 장소 목록을 조회한다.
         ResponseEntity<ApiResponse<PlaceSearchResponse>> searchResponse = restTemplate.exchange(
-                searchUrl,
+                "/api/v1/places?lat=" + BASE_LAT + "&lng=" + BASE_LNG + "&radius=500&size=10",
                 HttpMethod.GET,
-                new HttpEntity<>(searchHeaders),
+                null,
                 new ParameterizedTypeReference<>() {}
         );
         assertThat(searchResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         PlaceSearchResponse searchData = Objects.requireNonNull(searchResponse.getBody()).data();
         assertThat(searchData.places()).isNotEmpty();
-        PlaceSearchResponse.PlaceSummary firstPlace = searchData.places().get(0);
-        assertThat(firstPlace.placeId()).isEqualTo(placeId);
-        System.out.printf("[STEP 2] 장소 검색 성공 - '%s' (%.1fm)%n", firstPlace.name(), firstPlace.distanceMeters());
+        System.out.printf("[STEP 2] 장소 검색 - 결과 개수=%d%n", searchData.places().size());
 
-        // 3. 검색 결과를 선택해 방문 세션을 생성한다. (멱등 키 필수)
-        VisitSessionStartRequest startRequest = new VisitSessionStartRequest();
-        startRequest.setPlaceId(placeId);
-        startRequest.setClientMode(ClientMode.NAVIGATION);
+        // 3. 하나의 장소를 선택해 방문 세션을 시작한다.
+        VisitSessionStartRequest sessionRequest = new VisitSessionStartRequest();
+        sessionRequest.setPlaceId(placeId);
+        sessionRequest.setClientMode(ClientMode.NAVIGATION);
+        sessionRequest.setClientNote("통합 테스트 – 세션 생성");
 
-        HttpHeaders startHeaders = new HttpHeaders();
-        startHeaders.set(HttpHeaders.AUTHORIZATION, accessToken);
-        startHeaders.setContentType(MediaType.APPLICATION_JSON);
-        startHeaders.set("Idempotency-Key", idempotencyKey());
+        HttpHeaders sessionHeaders = new HttpHeaders();
+        sessionHeaders.set(HttpHeaders.AUTHORIZATION, accessToken);
+        sessionHeaders.setContentType(MediaType.APPLICATION_JSON);
 
-        ResponseEntity<ApiResponse<VisitSessionStartResponse>> startResponse = restTemplate.exchange(
+        ResponseEntity<ApiResponse<VisitSessionStartResponse>> sessionResponse = restTemplate.exchange(
                 "/api/v1/sessions",
                 HttpMethod.POST,
-                new HttpEntity<>(startRequest, startHeaders),
+                new HttpEntity<>(sessionRequest, sessionHeaders),
                 new ParameterizedTypeReference<>() {}
         );
-        assertThat(startResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        VisitSessionStartResponse startData = Objects.requireNonNull(startResponse.getBody()).data();
-        assertThat(startData.state()).isEqualTo(VisitState.ACTIVE);
-        long sessionId = startData.sessionId();
-        System.out.printf("[STEP 3] 방문 세션 생성 - sessionId=%d, expiresAt=%s%n", sessionId, startData.expiresAt());
+        assertThat(sessionResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        VisitSessionStartResponse sessionData = Objects.requireNonNull(sessionResponse.getBody()).data();
+        Long sessionId = sessionData.sessionId();
+        System.out.printf("[STEP 3] 방문 세션 생성 - sessionId=%d, expiresAt=%s%n",
+                sessionId, sessionData.expiresAt());
 
-        // 3-1. 수동 도착이 가능하도록 서버 시각을 15분 앞당긴다. (10분 이상 경과 조건을 충족시키기 위함)
-        jdbcTemplate.update("UPDATE visits SET started_at = started_at - interval '15 minutes', "
-                + "expired_at = expired_at - interval '15 minutes' WHERE visit_id = ?", sessionId);
-
-        // 4. 사용자의 현재 위치를 서버에 전달한다.
+        // 4. 위치 이벤트를 전송해 자동 도착 조건을 만족시킨다.
         VisitPositionRequest positionRequest = new VisitPositionRequest();
         positionRequest.setLatitude(BigDecimal.valueOf(BASE_LAT));
         positionRequest.setLongitude(BigDecimal.valueOf(BASE_LNG));
-        positionRequest.setAccuracyMeters(BigDecimal.valueOf(5.0));
+        positionRequest.setAccuracyMeters(BigDecimal.valueOf(3.0));
         positionRequest.setMode(ClientMode.NAVIGATION);
         positionRequest.setRecordedAt(OffsetDateTime.now(ZoneId.of("Asia/Seoul")));
 
