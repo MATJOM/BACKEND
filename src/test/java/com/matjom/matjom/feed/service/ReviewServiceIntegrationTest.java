@@ -24,10 +24,12 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.matjom.matjom.support.PostgresIntegrationTest;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
+@ActiveProfiles("test")
 class ReviewServiceIntegrationTest extends PostgresIntegrationTest {
 
     @Autowired

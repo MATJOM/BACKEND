@@ -25,9 +25,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.ActiveProfiles;
 
 @WebMvcTest(controllers = PlaceController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@ActiveProfiles("test")
 class PlaceControllerTest {
 
     @Autowired
