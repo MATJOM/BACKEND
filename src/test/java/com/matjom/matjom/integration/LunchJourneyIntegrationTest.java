@@ -107,22 +107,31 @@ class LunchJourneyIntegrationTest {
         System.out.printf("[데이터 준비] placeId=%d 샘플 장소가 삽입되었습니다.%n", placeId);
 
         // 1. 회원 가입과 동시에 Access / Refresh 토큰을 발급받는다.
-        SignUpRequest signUpRequest = new SignUpRequest(
-                "lunch-user-" + UUID.randomUUID(),
-                "통합테스트 사용자",
-                "password1234!",
-                "010-1234-5678"
-        );
+        SignUpRequest signUpRequest = new SignUpRequest();
+        signUpRequest.setEmail("lunch-user-" + UUID.randomUUID() + "@matjom.test");
+        signUpRequest.setName("통합테스트 사용자");
+        signUpRequest.setPassword("password1234!");
 
-        ResponseEntity<ApiResponse<LoginResponse>> signUpResponse = restTemplate.postForEntity(
-                "/api/v1/auth/signup",
-                signUpRequest,
+        HttpHeaders signUpHeaders = new HttpHeaders();
+        signUpHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<ApiResponse<LoginResponse>> signUpResponse = restTemplate.exchange(
+                "/api/auth/signup",
+                HttpMethod.POST,
+                new HttpEntity<>(signUpRequest, signUpHeaders),
                 new ParameterizedTypeReference<>() {}
         );
         assertThat(signUpResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        LoginResponse loginData = Objects.requireNonNull(signUpResponse.getBody()).data();
-        String accessToken = "Bearer " + loginData.accessToken();
-        System.out.printf("[STEP 1] 회원 가입 및 로그인 완료 - accessToken=%s%n", loginData.accessToken().substring(0, 10) + "...");
+        LoginResponse loginData = Objects.requireNonNull(
+                Objects.requireNonNull(signUpResponse.getBody()).data(),
+                "회원 가입 응답에 데이터가 없습니다."
+        );
+        String accessTokenHeader = Objects.requireNonNull(
+                signUpResponse.getHeaders().getFirst(HttpHeaders.AUTHORIZATION),
+                "회원 가입 응답에 Authorization 헤더가 없습니다."
+        );
+        System.out.printf("[STEP 1] 회원 가입 완료 - refreshToken=%s%n",
+                maskToken(loginData.getRefreshToken()));
 
         // 2. 기준 좌표 주변의 장소 목록을 조회한다.
         ResponseEntity<ApiResponse<PlaceSearchResponse>> searchResponse = restTemplate.exchange(
@@ -143,7 +152,7 @@ class LunchJourneyIntegrationTest {
         sessionRequest.setClientNote("통합 테스트 – 세션 생성");
 
         HttpHeaders sessionHeaders = new HttpHeaders();
-        sessionHeaders.set(HttpHeaders.AUTHORIZATION, accessToken);
+        sessionHeaders.set(HttpHeaders.AUTHORIZATION, accessTokenHeader);
         sessionHeaders.setContentType(MediaType.APPLICATION_JSON);
 
         ResponseEntity<ApiResponse<VisitSessionStartResponse>> sessionResponse = restTemplate.exchange(
@@ -167,7 +176,7 @@ class LunchJourneyIntegrationTest {
         positionRequest.setRecordedAt(OffsetDateTime.now(ZoneId.of("Asia/Seoul")));
 
         HttpHeaders positionHeaders = new HttpHeaders();
-        positionHeaders.set(HttpHeaders.AUTHORIZATION, accessToken);
+        positionHeaders.set(HttpHeaders.AUTHORIZATION, accessTokenHeader);
         positionHeaders.setContentType(MediaType.APPLICATION_JSON);
 
         ResponseEntity<ApiResponse<VisitPositionResponse>> positionResponse = restTemplate.exchange(
@@ -190,7 +199,7 @@ class LunchJourneyIntegrationTest {
         arrivalRequest.setRequestedBy("user");
 
         HttpHeaders arrivalHeaders = new HttpHeaders();
-        arrivalHeaders.set(HttpHeaders.AUTHORIZATION, accessToken);
+        arrivalHeaders.set(HttpHeaders.AUTHORIZATION, accessTokenHeader);
         arrivalHeaders.setContentType(MediaType.APPLICATION_JSON);
         arrivalHeaders.set("Idempotency-Key", idempotencyKey());
 
@@ -270,5 +279,13 @@ class LunchJourneyIntegrationTest {
         json.setType("jsonb");
         json.setValue(value);
         return json;
+    }
+
+    private String maskToken(String token) {
+        if (token == null) {
+            return "null";
+        }
+        int end = Math.min(10, token.length());
+        return token.substring(0, end) + "...";
     }
 }
